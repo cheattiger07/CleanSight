@@ -72,7 +72,7 @@ def upload():
         all_null_cols = df.columns[df.isnull().all()].tolist()
 
         if all_null_cols:
-            dff=df.drop(columns=all_null_cols)
+            df=df.drop(columns=all_null_cols)
             flash(f"Warning: all-null columns found: {', '.join(all_null_cols)}", "danger")
             return redirect("/")
         recommendations = recommendation_engine(df)
