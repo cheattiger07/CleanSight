@@ -82,7 +82,7 @@ def upload():
         missing_count = df.isnull().sum().sum()
         duplicate_count = df.duplicated().sum()
         numeric_cols = len(df.select_dtypes(include='number').columns)
-        quality_score = max( 0, 100 - (int(missing_count / max(total_rows * total_cols, 1) * 50)+ int(duplicate_count / max(total_rows, 1) * 50)))
+        quality_score = quality_engine(df)
         tables = df.head(100).to_html(classes="table", index=False)
         # basic issues before cleaning
         issue_count = 0
