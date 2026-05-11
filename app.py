@@ -73,8 +73,8 @@ def upload():
 
         if all_null_cols:
             df=df.drop(columns=all_null_cols)
-            flash(f"Warning: all-null columns found: {', '.join(all_null_cols)}", "danger")
-            return redirect("/")
+            flash(f"Warning: all-null columns found: {', '.join(all_null_cols)}", "warning")
+            
         recommendations = recommendation_engine(df)
         # -------- dataset stats ----------
         total_rows = len(df)
