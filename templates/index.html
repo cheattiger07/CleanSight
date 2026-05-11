@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleanSight</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem;
+      font-family: 'Outfit', sans-serif;
+      background:
+  radial-gradient(circle at top left, #0d1f3c 0%, transparent 40%),
+  radial-gradient(circle at bottom right, #1a0a2e 0%, transparent 40%),
+  #080b12;
+    }
+
+    .cs-card {
+      background: #0f1117;
+      border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 3rem 2.5rem 2.5rem;
+      max-width: 480px;
+      width: 100%;
+    }
+
+    .cs-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      background: rgba(59,130,246,0.1);
+      border: 0.5px solid rgba(59,130,246,0.3);
+      color: #60a5fa;
+      padding: 4px 10px;
+      border-radius: 8px;
+      margin-bottom: 1.25rem;
+    }
+
+    .cs-badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #185fa5;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .cs-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: 38px;
+      font-weight: 400;
+      color: #f0f0f0;
+      margin: 0 0 0.5rem;
+      line-height: 1.15;
+      letter-spacing: -0.5px;
+    }
+
+    .cs-title span {
+      color: #185fa5;
+    }
+
+    .cs-sub {
+      font-size: 15px;
+      color: #888;
+      margin: 0 0 2rem;
+      line-height: 1.6;
+      
+    }
+
+    .cs-divider {
+      height: 0.5px;
+      background: rgba(255,255,255,0.07);
+      margin: 0 0 2rem;
+    }
+
+    .cs-label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .cs-dropzone {
+      border: 1.5px dashed rgba(255,255,255,0.12);
+      background: transparent;
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .cs-dropzone:hover {
+      border-color: #3b82f6;
+      background: rgba(59,130,246,0.05);
+    }
+
+    .cs-dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .cs-drop-icon {
+      font-size: 28px;
+      color: #aaa;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .cs-drop-main {
+      font-size: 14px;
+      font-weight: 500;
+      color: #e0e0e0;
+      margin-bottom: 4px;
+    }
+
+    .cs-drop-hint {
+      font-size: 12px;
+      color: #aaa;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .cs-filename {
+      font-size: 13px;
+      color: #185fa5;
+      font-family: 'DM Mono', monospace;
+      min-height: 18px;
+      margin-bottom: 1.25rem;
+      padding-left: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .cs-submit {
+      width: 100%;
+      padding: 13px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+      color: #fff;
+      border: none;
+      font-family: 'Outfit', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .cs-meta{
+       font-size:12px;
+       color:#888;
+       font-family:'DM Mono', monospace;
+       margin-bottom:2rem;
+       line-height:1.6;
+    }
+
+    .cs-submit:hover { opacity: 0.85; }
+    .cs-submit:active { transform: scale(0.98); }
+
+    .cs-footer {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 1.5rem;
+      justify-content: center;
+    }
+
+    .cs-feat {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: #555;
+    }
+
+    .cs-feat i { font-size: 13px; }
+    .alert{
+      padding:12px;
+      margin:1rem;
+      border-radius:8px;
+      font-size:14px;
+    }
+
+    .alert.danger{
+      background:#fcebeb;
+      color:#a32d2d;
+      border:1px solid #f7c1c1;
+    }  
+  </style>
+</head>
+<body>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert {{ category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <div class="cs-card">
+    <div class="cs-badge">
+      <span class="cs-badge-dot"></span>
+      AI-powered
+    </div>
+
+    <h1 class="cs-title">Clean<span>Sight</span></h1>
+    <p class="cs-sub">Upload raw data. Get structured, clean data — instantly.</p>
+    <p class="cs-meta">5 Cleaning Engines • Missing Data • Formatting • Duplicates • Outlier • Schema </p>
+    <div class="cs-divider"></div>
+
+    <p class="cs-label">Upload your file</p>
+
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+      <div class="cs-dropzone" id="dropzone">
+        <input type="file" name="file" required id="fileInput" accept=".csv,.xlsx,.xls">
+        <i class="ti ti-cloud-upload cs-drop-icon"></i>
+        <p class="cs-drop-main">Drop your file here</p>
+        <p class="cs-drop-hint">CSV, XLSX • Max 16 MB</p>
+      </div>
+
+      <div class="cs-filename" id="filename-display"></div>
+
+      <button type="submit" class="cs-submit">
+        <i class="ti ti-sparkles"></i>
+        Clean my data
+      </button>
+    </form>
+
+    <div class="cs-footer">
+      <span class="cs-feat"><i class="ti ti-lock"></i> Private</span>
+      <span class="cs-feat"><i class="ti ti-bolt"></i> Fast</span>
+      <span class="cs-feat"><i class="ti ti-circle-check"></i> Accurate</span>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('fileInput');
+    const display = document.getElementById('filename-display');
+    input.addEventListener('change', function () {
+      if (this.files && this.files[0]) {
+        display.innerHTML = '<i class="ti ti-file" style="font-size:14px"></i> ' + this.files[0].name;
+      } else {
+        display.innerHTML = '';
+      }
+    });
+  </script>
+
+</body>
+</html>

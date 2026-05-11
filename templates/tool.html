@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="/static/favicon.ico">
+<title>CleanSight — Data Cleaning Platform</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --bg-card: #ffffff;
+    --bg-sidebar: #faf9f6;
+    --border: rgba(0,0,0,0.08);
+    --border-med: rgba(0,0,0,0.12);
+    --text-primary: #111110;
+    --text-secondary: #6b6a67;
+    --text-tertiary: #a09f9b;
+    --accent: #185fa5;
+    --accent-light: #e6f1fb;
+    --accent-border: #b5d4f4;
+    --accent-text: #0c447c;
+    --warn: #854f0b;
+    --warn-bg: #faeeda;
+    --warn-border: #fac775;
+    --success: #3b6d11;
+    --success-bg: #eaf3de;
+    --success-border: #c0dd97;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --danger-border: #f7c1c1;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --font-main: 'Outfit', sans-serif;
+    --font-serif: 'DM Serif Display', serif;
+    --font-mono: 'DM Mono', monospace;
+    --sidebar-w: 220px;
+    --header-h: 60px;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--font-main);
+    background: var(--bg);
+    color: var(--text-primary);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ─── SIDEBAR ─────────────────────────────────────────── */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg-sidebar);
+    border-right: 0.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    flex-shrink: 0;
+    overflow-y: auto;
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 100;
+  }
+
+  .sidebar-logo {
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 0.5px solid var(--border);
+  }
+
+  .logo-title {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+  }
+
+  .logo-title span { color: var(--accent); }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    background: var(--accent-light);
+    border: 0.5px solid var(--accent-border);
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .badge-dot {
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .sidebar-nav { padding: 1rem 0.75rem; flex: 1; }
+
+  .nav-group-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    padding: 0.75rem 0.5rem 0.35rem;
+    font-family: var(--font-mono);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 10px;
+    border-radius: var(--radius-md);
+    font-size: 13.5px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    margin-bottom: 1px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+  }
+
+  .nav-item i { font-size: 16px; flex-shrink: 0; }
+
+  .nav-item:hover {
+    background: rgba(0,0,0,0.04);
+    color: var(--text-primary);
+  }
+
+  .nav-item.active {
+    background: var(--accent-light);
+    color: var(--accent-text);
+    font-weight: 500;
+  }
+
+  .nav-item.active i { color: var(--accent); }
+
+  .sidebar-footer {
+    padding: 1rem 1.25rem;
+    border-top: 0.5px solid var(--border);
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  /* ─── MAIN LAYOUT ─────────────────────────────────────── */
+  .main-wrap {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    
+  }
+
+  /* ─── HEADER ──────────────────────────────────────────── */
+  .header {
+    height: var(--header-h);
+    background: var(--bg-card);
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.75rem;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dataset-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .dataset-name i { color: var(--text-tertiary); font-size: 16px; }
+
+  .upload-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--success-bg);
+    color: var(--success);
+    border: 0.5px solid var(--success-border);
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .quality-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: var(--bg);
+    border: 0.5px solid var(--border-med);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+  }
+
+  .quality-score {
+    color: var(--success);
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-main);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 0.5px solid var(--border-med);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .btn:hover { background: var(--bg); }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-primary {
+    background: var(--text-primary);
+    color: #fff;
+    border-color: var(--text-primary);
+  }
+
+  .btn-primary:hover { opacity: 0.85; background: var(--text-primary); }
+
+  .btn-accent {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .btn-accent:hover { opacity: 0.88; background: var(--accent); }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent-light);
+    border: 0.5px solid var(--accent-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-text);
+    cursor: pointer;
+  }
+
+  /* ─── CONTENT ─────────────────────────────────────────── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem 2rem 6rem;
+  height: calc(100vh - var(--header-h));
+}
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    letter-spacing: -0.2px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ─── STAT CARDS ──────────────────────────────────────── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    transition: all .25s ease;
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-med);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat-label i { font-size: 14px; }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1;
+    font-family: var(--font-mono);
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 5px;
+  }
+
+  .stat-card.warn .stat-value { color: var(--warn); }
+  .stat-card.danger .stat-value { color: var(--danger); }
+  .stat-card.success .stat-value { color: var(--success); }
+  .stat-card.accent .stat-value { color: var(--accent); }
+
+  /* ─── RECOMMENDATIONS ─────────────────────────────────── */
+  .reco-panel {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+
+  .reco-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .reco-title {
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .reco-count {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: var(--warn-bg);
+    color: var(--warn);
+    border: 0.5px solid var(--warn-border);
+  }
+
+  .reco-list { padding: 0.5rem 0; }
+
+  .reco-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.65rem 1.25rem;
+    transition: background 0.15s;
+    cursor: default;
+  }
+
+  .reco-item:hover { background: var(--bg); }
+
+  .reco-icon {
+    width: 28px; height: 28px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .reco-icon.warn { background: var(--warn-bg); color: var(--warn); }
+  .reco-icon.danger { background: var(--danger-bg); color: var(--danger); }
+  .reco-icon.info { background: var(--accent-light); color: var(--accent); }
+
+  .reco-text { font-size: 13px; color: var(--text-primary); flex: 1; }
+  .reco-meta { font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono); }
+
+  .reco-pill {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 0.5px solid;
+  }
+
+  .reco-pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+  .reco-pill.danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+  .reco-pill.info { background: var(--accent-light); color: var(--accent-text); border-color: var(--accent-border); }
+
+  /* ─── FORM / CLEANING ENGINE ──────────────────────────── */
+  .engine-form { margin-bottom: 2rem; }
+
+  .accordion {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .accordion-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    user-select: none;
+  }
+
+  .accordion-header:hover { background: var(--bg); }
+
+  .accordion-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .accordion-title i { color: var(--accent); font-size: 17px; }
+
+  .accordion-chevron {
+    font-size: 16px;
+    color: var(--text-tertiary);
+    transition: transform 0.2s;
+  }
+
+  .accordion.open .accordion-chevron { transform: rotate(180deg); }
+
+  .accordion-body {
+    display: none;
+    border-top: 0.5px solid var(--border);
+    padding: 1.25rem;
+  }
+
+  .accordion.open .accordion-body { display: block; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem 1.5rem;
+  }
+
+  .form-row { margin-bottom: 1rem; }
+
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    font-family: var(--font-mono);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 0.5px solid var(--border-med);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+  }
+
+  .form-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(24,95,165,0.08);
+    background: var(--bg-card);
+  }
+
+  .form-input::placeholder { color: var(--text-tertiary); }
+
+  .form-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 0.5px solid var(--border-med);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .form-select:focus { border-color: var(--accent); }
+
+  input[type="date"].form-input { cursor: pointer; }
+  input[type="number"].form-input {
+  -moz-appearance: textfield;
+  -webkit-appearance: none;
+  appearance: textfield;
+  }
+
+  input[type="number"].form-input::-webkit-outer-spin-button,
+  input[type="number"].form-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+  }
+
+  /* Toggle switches */
+  .toggle-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    transition: border-color 0.15s, background 0.15s;
+    cursor: pointer;
+  }
+
+  .toggle-item:hover { border-color: var(--border-med); background: var(--bg-card); }
+
+  .toggle-item label {
+    font-size: 13px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .toggle-item label i { color: var(--text-tertiary); font-size: 15px; }
+
+  .toggle-switch {
+    position: relative;
+    width: 34px; height: 19px;
+    flex-shrink: 0;
+  }
+
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+  .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #d0ceca;
+    border-radius: 19px;
+    transition: 0.2s;
+  }
+
+  .toggle-slider:before {
+    content: '';
+    position: absolute;
+    width: 13px; height: 13px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(15px); }
+
+  /* Checkbox cards */
+  .checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+  }
+
+  .checkbox-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .checkbox-card:hover { border-color: var(--accent-border); background: var(--accent-light); }
+
+  .checkbox-card input { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+
+  /* Hidden real checkboxes */
+  .hidden-input { display: none; }
+
+  /* ─── GLOBAL SECTION ──────────────────────────────────── */
+  .global-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+
+  /* ─── DATA PREVIEW ────────────────────────────────────── */
+  .table-panel {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+
+  .table-toolbar {
+    padding: 0.9rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .table-title {
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .row-count {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+  }
+
+  .search-input {
+    padding: 6px 12px 6px 32px;
+    border: 0.5px solid var(--border-med);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-primary);
+    outline: none;
+    width: 200px;
+    transition: border-color 0.15s;
+    position: relative;
+  }
+
+  .search-input:focus { border-color: var(--accent); }
+
+  .search-wrap { position: relative; }
+
+  .search-wrap i {
+    position: absolute;
+    left: 9px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: var(--text-tertiary);
+    pointer-events: none;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    max-height: 340px;
+    overflow-y: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    background: var(--bg);
+    padding: 9px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    border-bottom: 0.5px solid var(--border-med);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+  }
+
+  tbody tr { transition: background 0.1s; }
+
+  tbody tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+
+  tbody tr:hover { background: var(--accent-light); }
+
+  tbody td {
+    padding: 8px 14px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+
+  .preview-placeholder {
+    padding: 2.5rem;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+
+  /* ─── CHANGE LOG ──────────────────────────────────────── */
+  .changelog-panel {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    margin-bottom: 2rem;
+    overflow: hidden;
+  }
+
+  .changelog-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .timeline { padding: 0.75rem 1.25rem; }
+
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    padding: 0.6rem 0;
+    position: relative;
+  }
+
+  .timeline-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    margin-top: 5px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 3px var(--success-bg);
+  }
+
+  .timeline-dot.pending { background: var(--text-tertiary); box-shadow: 0 0 0 3px var(--bg); }
+
+  .timeline-content { flex: 1; }
+
+  .timeline-op {
+    font-size: 13px;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .timeline-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+  }
+
+  .timeline-badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 7px;
+    border-radius: 20px;
+    background: var(--success-bg);
+    color: var(--success);
+    border: 0.5px solid var(--success-border);
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+
+  /* ─── EXPORT ──────────────────────────────────────────── */
+  .export-panel {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .export-info h3 {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .export-info p {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  .export-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ─── SUBMIT BAR ──────────────────────────────────────── */
+  .submit-bar {
+    position: sticky;
+    bottom: 0;
+    background: rgba(245,244,240,0.9);
+    backdrop-filter: blur(8px);
+    border-top: 0.5px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+
+  .submit-info {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+
+  /* ─── SCROLLBAR ───────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 10px; }
+
+  /* ─── DIVIDER ─────────────────────────────────────────── */
+  .divider { height: 0.5px; background: var(--border); margin: 1.25rem 0; }
+
+  /* ─── HIDDEN FILENAME ─────────────────────────────────── */
+  input[type="hidden"] { display: none; }
+
+  /* ─── RESPONSIVE ──────────────────────────────────────── */
+  @media (max-width: 900px) {
+    :root { --sidebar-w: 0px; }
+    .sidebar { display: none; }
+    .main-wrap { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── SIDEBAR ──────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-title">Clean<span>Sight</span></div>
+    <div class="logo-badge"><span class="badge-dot"></span> AI-powered</div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group-label">Engines</div>
+    <button class="nav-item active" onclick="scrollToSection('schema')">
+      <i class="ti ti-table"></i> Schema Engine
+    </button>
+    <button class="nav-item" onclick="scrollToSection('formatting')">
+      <i class="ti ti-text-wrap-disabled"></i> Formatting Engine
+    </button>
+    <button class="nav-item" onclick="scrollToSection('missing')">
+      <i class="ti ti-cell-signal-off"></i> Missing Engine
+    </button>
+    <button class="nav-item" onclick="scrollToSection('duplicate')">
+      <i class="ti ti-copy"></i> Duplicate Engine
+    </button>
+    <button class="nav-item" onclick="scrollToSection('datatype')">
+      <i class="ti ti-binary"></i> Data Type Engine
+    </button>
+    <button class="nav-item" onclick="scrollToSection('outlier')">
+      <i class="ti ti-chart-dots"></i> Outlier Engine
+    </button>
+
+    <div class="nav-group-label" style="margin-top:0.75rem">Insights</div>
+    <button class="nav-item" onclick="scrollToSection('preview')">
+      <i class="ti ti-eye"></i> Data Preview
+    </button>
+    <button class="nav-item" onclick="scrollToSection('changelog')">
+      <i class="ti ti-history"></i> Change Log
+    </button>
+    <button class="nav-item" onclick="scrollToSection('export')">
+      <i class="ti ti-download"></i> Export
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">v{{ version }} · cleansight</div>
+</aside>
+
+<!-- ─── MAIN ─────────────────────────────────────────────── -->
+<div class="main-wrap">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="dataset-name">
+        <i class="ti ti-file-spreadsheet"></i>
+        <span id="dataset-label">dataset.csv</span>
+      </div>
+      <div class="upload-badge">
+        <i class="ti ti-circle-check" style="font-size:12px"></i> Loaded
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="quality-pill">
+        Quality <span class="quality-score
+        {% if quality_score < 60 %}danger
+        {% elif quality_score < 80 %}warn
+        {% else %}success
+        {% endif %}">{{ quality_score }}/100</span>
+      </div>
+      <button class="btn" onclick="scrollToSection('export')">
+        <i class="ti ti-download"></i> Export
+      </button>
+      <div class="avatar">CS</div>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <div class="content" id="main-content">
+
+    <form action="/clean" method="POST" id="clean-form">
+      <input type="hidden" name="filename" value="{{ filename }}">
+
+      <!-- ── SECTION A: OVERVIEW ── -->
+      <div class="section-label"><i class="ti ti-layout-dashboard"></i> Dataset Overview</div>
+      <div class="stat-grid" style="margin-bottom:2rem">
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-rows-intersect"></i> Total Rows</div>
+          <div class="stat-value">{{ total_rows }}</div>
+          <div class="stat-sub">records loaded</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label"><i class="ti ti-columns-3"></i> Total Columns</div>
+          <div class="stat-value">{{ total_cols }}</div>
+          <div class="stat-sub">fields detected</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-label"><i class="ti ti-cell-signal-off"></i> Missing Values</div>
+          <div class="stat-value">{{ missing_count }}</div>
+          <div class="stat-sub">across all columns</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label"><i class="ti ti-copy"></i> Duplicates</div>
+          <div class="stat-value">{{ duplicate_count }}</div>
+          <div class="stat-sub">duplicate rows</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label"><i class="ti ti-circle-check"></i> Quality Score</div>
+          <div class="stat-value">{{ quality_score }}</div>
+          <div class="stat-sub">out of 100</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-label"><i class="ti ti-math"></i> Numeric Cols</div>
+          <div class="stat-value">{{ numeric_cols }}</div>
+          <div class="stat-sub">numeric fields</div>
+        </div>
+      </div>
+
+      <!-- ── SECTION B: RECOMMENDATIONS ── -->
+      <div class="section-label"><i class="ti ti-sparkles"></i> Recommendations</div>
+      <div class="reco-panel" style="margin-bottom:2rem">
+        <div class="reco-header">
+          <div class="reco-title">
+            <i class="ti ti-alert-triangle" style="color:var(--warn)"></i>
+            Cleaning Recommendations
+          </div>
+          <span class="reco-count">{{ remaining_issues }} issues</span>
+        </div>
+        <div class="reco-list">
+
+  {% if recs %}
+  {% for rec in recs %}
+    <div class="reco-item">
+      <div class="reco-icon warn">
+        <i class="ti ti-alert-circle"></i>
+      </div>
+      <div class="reco-text">{{ rec }}</div>
+      <span class="reco-pill warn">AI</span>
+    </div>
+  {% endfor %}   <!-- ← This endfor matches the for above -->
+    </div> <!-- closes reco-list -->
+    </div> <!-- closes reco-panel -->
+{% else %}
+  <div class="reco-item">
+    <div class="reco-icon info">
+      <i class="ti ti-circle-check"></i>
+    </div>
+    <div class="reco-text">No major issues detected</div>
+    <span class="reco-pill info">Clean</span>
+  </div>
+{% endif %}
+
+      <!-- ── SECTION C: ENGINE OPERATIONS ── -->
+      <div class="section-label"><i class="ti ti-settings-automation"></i> Cleaning Operations</div>
+      <div class="engine-form">
+
+        <!-- SCHEMA ENGINE -->
+        <div class="accordion open" id="schema">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-table"></i> Schema Engine — Global Cleaning
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="toggle-group">
+              <div class="toggle-item">
+                <label for="t-dedup"><i class="ti ti-copy"></i> Remove duplicates</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="t-dedup" name="remove_duplicates">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <label for="t-nulls"><i class="ti ti-ban"></i> Drop missing rows</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="t-nulls" name="drop_nulls">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <label for="t-cols"><i class="ti ti-tag"></i> Clean column names</label>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="t-cols" name="clean_columns">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="form-label" style="margin-bottom:8px">Duplicate detection columns</div>
+            <div class="checkbox-grid" id="dup-cols-grid">
+              {% for col in columns %}
+              <label class="checkbox-card">
+                <input type="checkbox" name="dup_cols" value="{{ col }}"> {{ col }}
+              </label>
+              {% endfor %}
+              <!-- Fallback demo columns if no Jinja context -->
+            </div>
+          </div>
+        </div>
+
+        <!-- FORMATTING ENGINE -->
+        <div class="accordion" id="formatting">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-text-wrap-disabled"></i> Formatting Engine
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Lowercase columns</label>
+                <input type="text" name="lower_cols" placeholder="customername, country" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Trim whitespace columns</label>
+                <input type="text" name="trim_cols" placeholder="customername, email" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Date formatting columns</label>
+                <input type="text" name="date_cols" placeholder="orderdate, dob" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Numeric cleanup columns</label>
+                <input type="text" name="numeric_clean_cols" placeholder="price, salary, weight" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Email cleanup columns</label>
+                <input type="text" name="email_cols" placeholder="email, customer_email" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Phone cleanup columns</label>
+                <input type="text" name="phone_cols" placeholder="phone, mobile, contact" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Boolean normalize columns</label>
+                <input type="text" name="bool_cols" placeholder="status, isactive, verified" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Text standardization columns</label>
+                <input type="text" name="standardize_cols" placeholder="country, city, status" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Address cleanup columns</label>
+                <input type="text" name="address_cols" placeholder="address, location" class="form-input">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MISSING ENGINE -->
+        <div class="accordion" id="missing">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-cell-signal-off"></i> Missing Value Engine
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Fill missing with 0</label>
+                <input type="text" name="fill0_cols" placeholder="quantity" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Fill missing with mean</label>
+                <input type="text" name="mean_cols" placeholder="price" class="form-input">
+                <div style="margin-top:7px">
+                  <label class="checkbox-card" style="display:inline-flex">
+                    <input type="checkbox" name="zero_as_na_mean"> Treat 0 as missing for mean
+                  </label>
+                </div>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Fill missing with median</label>
+                <input type="text" name="median_cols" placeholder="price, salary" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Fill missing with "Unknown"</label>
+                <input type="text" name="unknown_cols" placeholder="country" class="form-input">
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="form-label" style="margin-bottom:12px">Smart Fill</div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Smart fill columns</label>
+                <input type="text" name="smartfill_cols" placeholder="price, quantity, country" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Smart fill strategy</label>
+                <select name="smartfill_strategy" class="form-select">
+                  <option value="mean">Mean</option>
+                  <option value="median">Median</option>
+                  <option value="mode">Mode</option>
+                  <option value="zero">Fill 0</option>
+                  <option value="unknown">Unknown</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DUPLICATE ENGINE -->
+        <div class="accordion" id="duplicate">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-copy"></i> Duplicate Engine
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Fuzzy duplicate columns</label>
+                <input type="text" name="fuzzy_cols" placeholder="customername, product" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Fuzzy match threshold (%)</label>
+                <input type="number" name="fuzzy_threshold" value="85" class="form-input">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA TYPE ENGINE -->
+        <div class="accordion" id="datatype">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-binary"></i> Data Type Engine
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Detect numeric columns</label>
+                <input type="text" name="numeric_detect_cols" placeholder="price, quantity, salary" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Preserve ID columns</label>
+                <input type="text" name="id_cols" placeholder="orderid, zipcode, productcode" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Auto-detect date columns</label>
+                <input type="text" name="auto_date_cols" placeholder="orderdate, dob, createdat" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Drop columns</label>
+                <input type="text" name="drop_cols" placeholder="temp_column" class="form-input">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OUTLIER ENGINE -->
+        <div class="accordion" id="outlier">
+          <div class="accordion-header" onclick="toggleAccordion(this.parentElement)">
+            <div class="accordion-title">
+              <i class="ti ti-chart-dots"></i> Outlier & Validation Engine
+            </div>
+            <i class="ti ti-chevron-down accordion-chevron"></i>
+          </div>
+          <div class="accordion-body">
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Detect negative values</label>
+                <input type="text" name="negative_cols" placeholder="quantity, price, age" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Detect IQR outliers</label>
+                <input type="text" name="outlier_cols" placeholder="price, salary, quantity" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Impossible value columns</label>
+                <input type="text" name="impossible_cols" placeholder="age, percentage, rating" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Minimum allowed value</label>
+                <input type="number" step="any" name="min_value" placeholder="0" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Maximum allowed value</label>
+                <input type="number" step="any" name="max_value" placeholder="100" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Validate email columns</label>
+                <input type="text" name="email_validate_cols" placeholder="email, customeremail" class="form-input">
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="form-label" style="margin-bottom:12px">Date Validation</div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Date validation columns</label>
+                <input type="text" name="date_validate_cols" placeholder="orderdate, dob" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Minimum allowed date</label>
+                <input type="date" name="min_date" class="form-input">
+              </div>
+              <div class="form-row">
+                <label class="form-label">Maximum allowed date</label>
+                <input type="date" name="max_date" class="form-input">
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /engine-form -->
+
+      <!-- ── SECTION D: DATA PREVIEW ── -->
+      <div class="section-label" id="preview"><i class="ti ti-table"></i> Data Preview</div>
+      <div class="table-panel" style="margin-bottom:2rem">
+        <div class="table-toolbar">
+          <div class="table-title">
+            <i class="ti ti-table" style="color:var(--text-tertiary)"></i>
+            Raw Dataset
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span class="row-count" id="row-count-label">— rows</span>
+            <div class="search-wrap">
+              <i class="ti ti-search"></i>
+              <input class="search-input" type="text" placeholder="Search..." id="table-search">
+            </div>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <div id="preview-table-wrap">
+            {{ tables | safe }}
+            <div class="preview-placeholder" id="preview-placeholder">
+              <i class="ti ti-table-off" style="font-size:28px;display:block;margin-bottom:8px"></i>
+              Upload a dataset to preview data here
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUBMIT BAR -->
+      <div class="submit-bar">
+        <div class="submit-info">All operations will be applied in order · results downloadable after clean</div>
+        <button type="submit" class="btn btn-primary" style="padding:10px 24px;font-size:14px">
+          <i class="ti ti-sparkles"></i> Run Cleaning Engine
+        </button>
+      </div>
+
+    </form><!-- /form -->
+
+    </div><!-- /content -->
+
+</div><!-- /main-wrap -->
+
+<script>
+  // Accordion toggle
+  function toggleAccordion(el) {
+    el.classList.toggle('open');
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(n => n.classList.remove('active'));
+    const id = el.id;
+    const match = document.querySelector(`.nav-item[onclick*="${id}"]`);
+    if (match) match.classList.add('active');
+  }
+
+  // Scroll to section
+  function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const match = document.querySelector(`.nav-item[onclick*="${id}"]`);
+    if (match) match.classList.add('active');
+  }
+
+  // Table search
+  const searchInput = document.getElementById('table-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', function() {
+      const q = this.value.toLowerCase();
+      const tbody = document.querySelector('#preview-table-wrap tbody');
+      if (!tbody) return;
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  }
+
+  // Hide placeholder if table exists
+  const tableWrap = document.getElementById('preview-table-wrap');
+  const placeholder = document.getElementById('preview-placeholder');
+  const table = tableWrap?.querySelector("table");
+  if (table && placeholder) {
+    placeholder.style.display = "none";
+    const rows = table.querySelectorAll("tbody tr");
+    document.getElementById("row-count-label").textContent = rows.length + " rows";
+  } else {
+  placeholder.style.display = "block";
+  }
+
+  // Style injected tables from Flask
+  document.querySelectorAll('#preview-table-wrap table').forEach(t => {
+    t.removeAttribute('border');
+    t.removeAttribute('style');
+    t.style.width = '100%';
+    t.style.borderCollapse = 'collapse';
+    t.style.fontSize = '13px';
+  });
+
+  // Active sidebar on scroll
+  const content = document.getElementById('main-content');
+  const sections = ['schema','formatting','missing','duplicate','datatype','outlier','preview','changelog','export'];
+  if (content) {
+    content.addEventListener('scroll', () => {
+      for (const id of [...sections].reverse()) {
+        const el = document.getElementById(id);
+        const top = el.offsetTop - content.scrollTop;
+        if (el && top <= 120) {
+          document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+          const match = document.querySelector(`.nav-item[onclick*="${id}"]`);
+          if (match) match.classList.add('active');
+          break;
+        }
+      }
+    });
+  }
+  const form = document.getElementById("clean-form");
+  if (form) {
+    form.addEventListener("submit", function () {
+    const btn = this.querySelector("button[type='submit']");
+    btn.innerHTML = '<i class="ti ti-loader ti-spin"></i> Cleaning...';
+    btn.disabled = true;
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CleanSight — Results</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  :root {
+    --bg: #f5f4f0;
+    --bg-card: #ffffff;
+    --bg-sidebar: #faf9f6;
+    --border: rgba(0,0,0,0.08);
+    --border-med: rgba(0,0,0,0.12);
+    --text-primary: #111110;
+    --text-secondary: #6b6a67;
+    --text-tertiary: #a09f9b;
+    --accent: #185fa5;
+    --accent-light: #e6f1fb;
+    --accent-border: #b5d4f4;
+    --accent-text: #0c447c;
+    --warn: #854f0b;
+    --warn-bg: #faeeda;
+    --warn-border: #fac775;
+    --success: #2d6a11;
+    --success-bg: #eaf3de;
+    --success-border: #c0dd97;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --danger-border: #f7c1c1;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.06);
+    --font-main: 'Outfit', sans-serif;
+    --font-serif: 'DM Serif Display', serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+ 
+  html { scroll-behavior: smooth; }
+ 
+  body {
+    font-family: var(--font-main);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+ 
+  /* ── STICKY HEADER ──────────────────────────────────── */
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 56px;
+  }
+ 
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+ 
+  .logo {
+    font-family: var(--font-serif);
+    font-size: 18px;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    text-decoration: none;
+  }
+ 
+  .logo span { color: var(--accent); }
+ 
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+  }
+ 
+  .breadcrumb i { font-size: 14px; }
+ 
+  .top-bar-right { display: flex; align-items: center; gap: 8px; }
+ 
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-md);
+    font-family: var(--font-main);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    border: 0.5px solid var(--border-med);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+ 
+  .btn:hover { background: var(--bg); }
+  .btn:active { transform: scale(0.98); }
+ 
+  .btn-primary {
+    background: var(--text-primary);
+    color: #fff;
+    border-color: var(--text-primary);
+  }
+ 
+  .btn-primary:hover { opacity: 0.85; background: var(--text-primary); }
+ 
+  .btn-success {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+  }
+ 
+  .btn-success:hover { opacity: 0.88; background: var(--success); }
+ 
+  /* ── PAGE ───────────────────────────────────────────── */
+  .page { max-width: 1200px; margin: 0 auto; padding: 2rem 2rem 4rem; }
+ 
+  /* ── PAGE TITLE ─────────────────────────────────────── */
+  .page-hero {
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+ 
+  .page-title {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    font-weight: 400;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+ 
+  .page-subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+ 
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+ 
+  /* ── KPI GRID ───────────────────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 2rem;
+  }
+ 
+  .kpi-card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+ 
+  .kpi-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-med);
+  }
+ 
+  .kpi-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+ 
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1;
+    font-family: var(--font-mono);
+  }
+ 
+  .kpi-sub {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 5px;
+  }
+ 
+  .kpi-card.success .kpi-value { color: var(--success); }
+  .kpi-card.warn .kpi-value { color: var(--warn); }
+  .kpi-card.danger .kpi-value { color: var(--danger); }
+  .kpi-card.accent .kpi-value { color: var(--accent); }
+ 
+  /* Quality Score card special */
+  .quality-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.25rem;
+    grid-column: span 2;
+    transition: box-shadow 0.2s;
+  }
+ 
+  .quality-card:hover { box-shadow: var(--shadow-md); }
+ 
+  .quality-ring {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+  }
+ 
+  .quality-ring svg { transform: rotate(-90deg); }
+ 
+  .quality-ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+ 
+  .quality-info .kpi-label { margin-bottom: 4px; }
+ 
+  .quality-info .big-score {
+    font-family: var(--font-serif);
+    font-size: 22px;
+    color: var(--text-primary);
+  }
+ 
+  .quality-info .quality-grade {
+    font-size: 12px;
+    font-family: var(--font-mono);
+    margin-top: 4px;
+  }
+ 
+  /* ── COMPARISON TABLE ───────────────────────────────── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+ 
+  @media (max-width: 800px) { .compare-grid { grid-template-columns: 1fr; } 
+    .quality-card {
+    grid-column: span 1;
+  } }
+ 
+  .table-panel {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+ 
+  .panel-header {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+ 
+  .panel-title {
+    font-size: 13.5px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+ 
+  .panel-badge {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 0.5px solid;
+  }
+ 
+  .panel-badge.orig {
+    background: var(--danger-bg);
+    color: var(--danger);
+    border-color: var(--danger-border);
+  }
+ 
+  .panel-badge.clean {
+    background: var(--success-bg);
+    color: var(--success);
+    border-color: var(--success-border);
+  }
+ 
+  .table-scroll { overflow-x: auto; max-height: 300px; overflow-y: auto; }
+ 
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+ 
+  thead th {
+    background: var(--bg);
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    border-bottom: 0.5px solid var(--border-med);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+  }
+ 
+  tbody tr { transition: background 0.1s; }
+  tbody tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+  tbody tr:hover { background: var(--accent-light); }
+ 
+  tbody td {
+    padding: 7px 14px;
+    border-bottom: 0.5px solid var(--border);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+ 
+  /* ── MISSING REPORT ─────────────────────────────────── */
+  .card {
+    background: var(--bg-card);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+ 
+  .card-header {
+    padding: 0.9rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+ 
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+ 
+  .card-body { padding: 0; }
+ 
+  .missing-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    transition: background 0.1s;
+  }
+ 
+  .missing-row:last-child { border-bottom: none; }
+  .missing-row:hover { background: var(--bg); }
+ 
+  .missing-col-name {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    width: 180px;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+ 
+  .missing-bar-wrap { flex: 1; }
+ 
+  .missing-bar-track {
+    height: 5px;
+    background: var(--bg);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+ 
+  .missing-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  }
+ 
+  .missing-bar-fill.low { background: var(--success); }
+  .missing-bar-fill.mid { background: var(--warn); }
+  .missing-bar-fill.high { background: var(--danger); }
+ 
+  .missing-stats {
+    display: flex;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+ 
+  .missing-stat {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+ 
+  .missing-stat .val { font-weight: 500; color: var(--text-primary); }
+  .missing-stat .lbl { font-size: 10px; color: var(--text-tertiary); }
+ 
+  .empty-state {
+    padding: 2.5rem;
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 13px;
+  }
+ 
+  .empty-icon {
+    font-size: 28px;
+    display: block;
+    margin-bottom: 8px;
+    color: var(--success);
+  }
+ 
+  /* ── TIMELINE (CHANGES) ─────────────────────────────── */
+  .timeline { padding: 0.5rem 1.25rem 1rem; }
+ 
+  .timeline-item {
+    display: flex;
+    gap: 14px;
+    padding: 0.55rem 0;
+    position: relative;
+  }
+ 
+  .tl-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 20px;
+  }
+ 
+  .tl-dot {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--success-bg);
+    border: 1.5px solid var(--success-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--success);
+    flex-shrink: 0;
+  }
+ 
+  .tl-line {
+    width: 1px;
+    flex: 1;
+    min-height: 12px;
+    background: var(--border);
+    margin-top: 3px;
+  }
+ 
+  .tl-text {
+    font-size: 13px;
+    color: var(--text-primary);
+    padding-top: 1px;
+    line-height: 1.5;
+  }
+ 
+  /* ── RECOMMENDATIONS ────────────────────────────────── */
+  .reco-list { padding: 0.5rem 0; }
+ 
+  .reco-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 0.5px solid var(--border);
+    transition: background 0.1s;
+  }
+ 
+  .reco-item:last-child { border-bottom: none; }
+  .reco-item:hover { background: var(--bg); }
+ 
+  .reco-icon {
+    width: 30px; height: 30px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+ 
+  .reco-icon.info { background: var(--accent-light); color: var(--accent); }
+  .reco-icon.warn { background: var(--warn-bg); color: var(--warn); }
+  .reco-icon.danger { background: var(--danger-bg); color: var(--danger); }
+ 
+  .reco-body { flex: 1; }
+ 
+  .reco-text {
+    font-size: 13.5px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+ 
+  .reco-pill {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    padding: 2px 8px;
+    border-radius: 20px;
+    border: 0.5px solid;
+  }
+ 
+  .reco-pill.info { background: var(--accent-light); color: var(--accent-text); border-color: var(--accent-border); }
+  .reco-pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn-border); }
+  .reco-pill.danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger-border); }
+ 
+  /* ── PROFILE GRID ───────────────────────────────────── */
+  .profile-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+    padding: 1.25rem;
+  }
+ 
+  .profile-card {
+    background: var(--bg);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+    transition: border-color 0.15s;
+  }
+ 
+  .profile-card:hover { border-color: var(--border-med); }
+ 
+  .profile-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+ 
+  .profile-value {
+    font-size: 22px;
+    font-weight: 500;
+    font-family: var(--font-mono);
+    color: var(--text-primary);
+  }
+ 
+  /* ── SCROLLBAR ──────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-med); border-radius: 10px; }
+ 
+  /* ── RESPONSIVE ─────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .page { padding: 1.25rem 1rem 3rem; }
+    .top-bar { padding: 0 1rem; }
+    .breadcrumb { display: none; }
+    .quality-card { grid-column: span 1; }
+    .missing-col-name { width: 100px; }
+  }
+ 
+  /* ── INJECT STYLE FOR FLASK TABLES ─────────────────── */
+  #orig-table-wrap table,
+  #clean-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+ 
+  #orig-table-wrap thead th,
+  #clean-table-wrap thead th {
+    background: var(--bg);
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 10.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    font-family: var(--font-mono);
+    border-bottom: 0.5px solid var(--border-med);
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+ 
+  #orig-table-wrap tbody td,
+  #clean-table-wrap tbody td {
+    padding: 7px 14px;
+    border-bottom: 0.5px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+ 
+  #orig-table-wrap tbody tr:nth-child(even),
+  #clean-table-wrap tbody tr:nth-child(even) { background: rgba(0,0,0,0.015); }
+ 
+  #orig-table-wrap tbody tr:hover,
+  #clean-table-wrap tbody tr:hover { background: var(--accent-light); }
+ 
+  /* strip inline border from flask tables */
+  #orig-table-wrap table[border],
+  #clean-table-wrap table[border] { border: none !important; }
+ 
+  #orig-table-wrap td[style],
+  #clean-table-wrap td[style] { border: none !important; }
+  .text-success { color: var(--success); }
+  .text-warn { color: var(--warn); }
+  .text-danger { color: var(--danger); }
+
+  .page {
+  padding: 1rem;
+  }
+
+  .kpi-grid {
+  grid-template-columns: 1fr 1fr;
+  }
+
+  .compare-grid {
+  grid-template-columns: 1fr;
+  }
+  <!-- EXPORT CARDS HSDF------------->
+  .export-panel{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.export-header h3{
+  font-size: 1.2rem;
+  margin-bottom: .35rem;
+}
+
+.export-header p{
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.export-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  gap:1rem;
+}
+
+.export-card{
+  text-decoration:none;
+  color:inherit;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:1.2rem;
+  display:flex;
+  gap:1rem;
+  align-items:center;
+  transition:.25s ease;
+  background: rgba(255,255,255,0.02);
+}
+
+.export-card:hover{
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 20px rgba(0,0,0,.08);
+}
+
+.export-icon{
+  width:54px;
+  height:54px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:1.4rem;
+}
+
+.csv{ background:#e8f7ee; color:#1f8f4e; }
+.excel{ background:#edf4ff; color:#2563eb; }
+.pdf{ background:#fff0f0; color:#dc2626; }
+
+.export-card h4{
+  margin:0;
+  font-size:1rem;
+}
+
+.export-card span{
+  font-size:.85rem;
+  color:var(--text-secondary);
+}
+</style>
+</head>
+<body>
+ 
+<!-- ── STICKY TOP BAR ──────────────────────────────────── -->
+<header class="top-bar">
+  <div class="top-bar-left">
+    <a class="logo" href="/">Clean<span>Sight</span></a>
+    <div class="breadcrumb">
+      <i class="ti ti-chevron-right"></i> Results
+    </div>
+  </div>
+  <div class="top-bar-right">
+    <a href="/" class="btn"><i class="ti ti-arrow-left"></i> New Clean</a>
+    <form action="/download" method="POST" style="display:inline">
+      <input type="hidden" name="filename" value="{{ filename }}">
+      <button type="submit" class="btn btn-success">
+        <i class="ti ti-download"></i> Download Cleaned File
+      </button>
+    </form>
+  </div>
+</header>
+ 
+<!-- ── PAGE ───────────────────────────────────────────── -->
+<div class="page">
+ 
+  <!-- PAGE HERO -->
+  <div class="page-hero">
+    <div>
+      <div class="page-title">Cleaning Complete</div>
+      <div class="page-subtitle">Your dataset has been processed — review the results below</div>
+    </div>
+  </div>
+ 
+  <!-- ── KPI ROW ─────────────────────────────────────── -->
+  <div class="section-label"><i class="ti ti-layout-dashboard"></i> Dataset Overview</div>
+  <div class="kpi-grid" style="margin-bottom:2rem">
+ 
+    <div class="kpi-card">
+      <div class="kpi-label"><i class="ti ti-rows-intersect"></i> Total Rows</div>
+      <div class="kpi-value">{{ profile.rows }}</div>
+      <div class="kpi-sub">records</div>
+    </div>
+ 
+    <div class="kpi-card">
+      <div class="kpi-label"><i class="ti ti-columns-3"></i> Columns</div>
+      <div class="kpi-value">{{ profile.columns }}</div>
+      <div class="kpi-sub">fields</div>
+    </div>
+ 
+    <div class="kpi-card warn">
+      <div class="kpi-label"><i class="ti ti-cell-signal-off"></i> Missing</div>
+      <div class="kpi-value">{{ profile.missing_values }}</div>
+      <div class="kpi-sub">total cells</div>
+    </div>
+ 
+    <div class="kpi-card danger">
+      <div class="kpi-label"><i class="ti ti-copy"></i> Duplicates</div>
+      <div class="kpi-value">{{ profile.duplicate_rows }}</div>
+      <div class="kpi-sub">rows removed</div>
+    </div>
+ 
+    <div class="kpi-card accent">
+      <div class="kpi-label"><i class="ti ti-math"></i> Numeric</div>
+      <div class="kpi-value">{{ profile.numeric_columns }}</div>
+      <div class="kpi-sub">columns</div>
+    </div>
+ 
+    <div class="kpi-card">
+      <div class="kpi-label"><i class="ti ti-letter-t"></i> Text</div>
+      <div class="kpi-value">{{ profile.text_columns }}</div>
+      <div class="kpi-sub">columns</div>
+    </div>
+ 
+    <!-- Quality Score spanning 2 cols -->
+    <div class="quality-card" style="grid-column: span 2">
+      <div class="quality-ring">
+        <svg width="64" height="64" viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="26" fill="none" stroke="#e8e6e1" stroke-width="5"/>
+          <circle cx="32" cy="32" r="26" fill="none"
+            stroke="{{quality_stroke }}"
+            stroke-width="5"
+            stroke-linecap="round"
+            stroke-dasharray="{{ (quality_score / 100 * 163.36) | round(2) }} 163.36"/>
+        </svg>
+        <div class="quality-ring-label">{{ quality_score }}</div>
+      </div>
+      <div class="quality-info">
+        <div class="kpi-label"><i class="ti ti-circle-check"></i> Quality Score</div>
+        <div class="big-score">{{ quality_score }}<span style="font-size:16px;color:var(--text-tertiary)">/100</span></div>
+        <div class="quality-grade {{ quality_class }}">
+            {{ quality_grade }}
+        </div>
+        </div>
+      </div>
+    </div>
+ 
+   
+ 
+  <!-- ── SIDE-BY-SIDE COMPARISON ─────────────────────── -->
+  <div class="section-label"><i class="ti ti-table"></i> Data Comparison</div>
+  <div class="compare-grid" style="margin-bottom:2rem">
+ 
+    <div class="table-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="ti ti-table" style="color:var(--text-tertiary)"></i> Original Data
+        </div>
+        <span class="panel-badge orig">before</span>
+      </div>
+      <div class="table-scroll">
+        <div id="orig-table-wrap">{{ original_table | safe }}</div>
+      </div>
+      <p style="padding:10px;font-size:12px;color:var(--text-tertiary)">
+      Showing first 100 rows only
+    </p>
+    </div>
+ 
+    <div class="table-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i class="ti ti-table-filled" style="color:var(--success)"></i> Cleaned Data
+        </div>
+        <span class="panel-badge clean">after</span>
+      </div>
+      <div class="table-scroll">
+        <div id="clean-table-wrap">{{ cleaned_table | safe }}</div>
+      </div>
+    <p style="padding:10px;font-size:12px;color:var(--text-tertiary)">
+      Showing first 100 rows only
+    </p>
+    </div>
+ 
+  </div>
+ 
+  <!-- ── MISSING DATA REPORT ─────────────────────────── -->
+  <div class="section-label"><i class="ti ti-cell-signal-off"></i> Missing Data Report</div>
+  <div class="card" style="margin-bottom:2rem">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="ti ti-cell-signal-off" style="color:var(--warn)"></i> Missing Values by Column
+      </div>
+    </div>
+    <div class="card-body">
+      {% if missing_report %}
+        {% for col, info in missing_report.items() %}
+        <div class="missing-row">
+          <div class="missing-col-name">{{ col }}</div>
+          <div class="missing-bar-wrap">
+            <div class="missing-bar-track">
+              <div class="missing-bar-fill {{ info.bar_class }}"
+                    style="width: {{ info.missing_percent }}%">
+              </div>
+            </div>
+          </div>
+          <div class="missing-stats">
+            <div class="missing-stat">
+              <div class="val">{{ info.missing_count }}</div>
+              <div class="lbl">count</div>
+            </div>
+            <div class="missing-stat">
+              <div class="val text-{{ info.color_class }}">
+                    {{ info.missing_percent }}%
+              </div>
+              <div class="lbl">missing</div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty-state">
+          <i class="ti ti-circle-check empty-icon"></i>
+          No missing data found — dataset is complete!
+        </div>
+      {% endif %}
+    </div>
+  </div>
+ 
+  <!-- ── CHANGES TIMELINE ────────────────────────────── -->
+  <div class="section-label"><i class="ti ti-history"></i> Changes Applied</div>
+  <div class="card" style="margin-bottom:2rem">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="ti ti-history" style="color:var(--accent)"></i> Operation Log
+      </div>
+      <span style="font-size:12px;font-family:var(--font-mono);color:var(--text-tertiary)">
+        {{ changes | length }} operations
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="timeline">
+        {% for c in changes %}
+        <div class="timeline-item">
+          <div class="tl-left">
+            <div class="tl-dot"><i class="ti ti-check" style="font-size:10px"></i></div>
+            {% if not loop.last %}<div class="tl-line"></div>{% endif %}
+          </div>
+          <div class="tl-text">{{ c }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+ 
+  <!-- ── DATASET PROFILE ─────────────────────────────── -->
+  <div class="section-label"><i class="ti ti-chart-bar"></i> Dataset Profile</div>
+  <div class="card" style="margin-bottom:2rem">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="ti ti-report-analytics" style="color:var(--accent)"></i> Full Profile
+      </div>
+    </div>
+    <div class="profile-grid">
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-rows-intersect"></i> Total Rows</div>
+        <div class="profile-value">{{ profile.rows }}</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-columns-3"></i> Total Columns</div>
+        <div class="profile-value">{{ profile.columns }}</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-cell-signal-off"></i> Missing Values</div>
+        <div class="profile-value" style="color:var(--warn)">{{ profile.missing_values }}</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-copy"></i> Duplicate Rows</div>
+        <div class="profile-value" style="color:var(--danger)">{{ profile.duplicate_rows }}</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-math"></i> Numeric Columns</div>
+        <div class="profile-value" style="color:var(--accent)">{{ profile.numeric_columns }}</div>
+      </div>
+      <div class="profile-card">
+        <div class="profile-label"><i class="ti ti-letter-t"></i> Text Columns</div>
+        <div class="profile-value">{{ profile.text_columns }}</div>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- ── RECOMMENDATIONS ──────────────────────────── -->
+  <div class="section-label"><i class="ti ti-sparkles"></i> Recommendations</div>
+  <div class="card" style="margin-bottom:2rem">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="ti ti-sparkles" style="color:var(--accent)"></i> Cleaning Recommendations
+      </div>
+      <span style="font-size:12px;font-family:var(--font-mono);color:var(--text-tertiary)">
+        {{ recommendations | length }} suggestions
+      </span>
+    </div>
+    <div class="reco-list">
+      {% for rec in recommendations %}
+      <div class="reco-item">
+        <div class="reco-icon
+          {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}danger
+          {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower or 'mixed' in rec | lower %}warn
+          {% else %}info{% endif %}">
+          <i class="ti
+            {% if 'email' in rec | lower %}ti-at
+            {% elif 'date' in rec | lower %}ti-calendar
+            {% elif 'phone' in rec | lower %}ti-phone
+            {% elif 'duplicate' in rec | lower %}ti-copy
+            {% elif 'negative' in rec | lower %}ti-trending-down
+            {% elif 'missing' in rec | lower %}ti-cell-signal-off
+            {% else %}ti-alert-circle{% endif %}">
+          </i>
+        </div>
+        <div class="reco-body">
+          <div class="reco-text">{{ rec }}</div>
+          <span class="reco-pill
+            {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}danger
+            {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower or 'mixed' in rec | lower %}warn
+            {% else %}info{% endif %}">
+            {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}Critical
+            {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower %}Warning
+            {% else %}Info{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+    <!-- ── SECTION F: EXPORT ── -->
+    <div class="section-label" id="export">
+  <i class="ti ti-download"></i> Export Results
+</div>
+
+<div class="export-panel">
+
+  <div class="export-header">
+    <h3>Download cleaned dataset</h3>
+    <p>Choose your preferred format or generate a full quality report</p>
+  </div>
+
+  <div class="export-grid">
+
+    <a href="/download/csv?filename={{ filename }}" class="export-card">
+      <div class="export-icon csv">
+        <i class="ti ti-file-type-csv"></i>
+      </div>
+      <div>
+        <h4>Download CSV</h4>
+        <span>Cleaned dataset (.csv)</span>
+      </div>
+    </a>
+
+    <a href="/download/excel?filename={{ filename | urlencode }}" class="export-card">
+      <div class="export-icon excel">
+        <i class="ti ti-file-spreadsheet"></i>
+      </div>
+      <div>
+        <h4>Download Excel</h4>
+        <span>3-sheet workbook (.xlsx)</span>
+      </div>
+    </a>
+
+    <a href="/report?filename={{ filename }}" class="export-card report">
+      <div class="export-icon pdf">
+        <i class="ti ti-report-analytics"></i>
+      </div>
+      <div>
+        <h4>Generate PDF</h4>
+        <span>Full quality report</span>
+      </div>
+    </a>
+
+  </div>
+</div>
+ 
+  <!-- ── EXPORT ──────────────────────────────────────── -->
+  <div class="section-label"><i class="ti ti-download"></i> Export</div>
+  <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
+    <div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:4px">Download your clean dataset</div>
+      <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">Processed and ready to use</div>
+    </div>
+    <form action="/download" method="POST">
+      <input type="hidden" name="filename" value="{{ filename }}">
+      <button type="submit" class="btn btn-success" style="padding:10px 22px;font-size:14px">
+        <i class="ti ti-download"></i> Download Cleaned File
+      </button>
+    </form>
+    </div>
+</div><!-- /page -->
+ 
+<script>
+  // Strip inline borders from Flask-rendered tables
+  document.querySelectorAll('#orig-table-wrap table, #clean-table-wrap table').forEach(t => {
+    t.removeAttribute('border');
+    t.removeAttribute('style');
+    t.querySelectorAll('td, th').forEach(cell => cell.removeAttribute('style'));
+  });
+</script>
+</body>
+</html>
