@@ -121,9 +121,11 @@ def clean():
         filename = request.form["filename"]
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         try:
-            df = pd.read_csv(file_path, encoding="utf-8")
+            df = pd.read_csv(file_path, encoding="utf-8",on_bad_lines="skip")
         except UnicodeDecodeError:
-            df = pd.read_csv(file_path, encoding="latin1")
+            df = pd.read_csv(file_path, encoding="latin1",on_bad_lines="skip")
+        df=df.dropna(how="all")
+        df=df.loc[:,~df.columns.str.contains("^unnamed")]
         #save the original data
         original_df = df.copy()
         changes = []
