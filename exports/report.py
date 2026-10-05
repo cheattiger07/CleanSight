@@ -4,7 +4,6 @@ import math
 import traceback
 from datetime import datetime
 import pandas as pd
-from flask import request, send_file, redirect, flash
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
 from reportlab.lib.units import mm
@@ -416,16 +415,17 @@ def reco_table(recommendations, styles):
     avail_w = PAGE_W - 2*MARGIN
     rows = []
 
-    for rec in recommendations:
-        rec_lower = rec.lower()
-        if any(k in rec_lower for k in ["invalid", "error", "negative", "critical"]):
-            sev, sev_color, bg = "CRITICAL", C_DANGER, C_DANGER_BG
-        elif any(k in rec_lower for k in ["missing", "inconsistent", "mixed", "duplicate"]):
-            sev, sev_color, bg = "WARNING", C_WARN, C_WARN_BG
-        else:
-            sev, sev_color, bg = "INFO", C_ACCENT, C_ACCENT_LIGHT
+    SEV_COLORS = {
+        "critical": (C_DANGER, C_DANGER_BG),
+        "warning":  (C_WARN, C_WARN_BG),
+        "info":     (C_ACCENT, C_ACCENT_LIGHT),
+    }
 
-        icon = "✦"
+    for rec in recommendations:
+        sev = rec.get("severity", "info")
+        sev_color, bg = SEV_COLORS.get(sev, SEV_COLORS["info"])
+        sev_label = sev.upper()
+
         text_style = ParagraphStyle(
             "rec_body", fontName="Helvetica", fontSize=9,
             textColor=C_TEXT, leading=13
@@ -436,12 +436,12 @@ def reco_table(recommendations, styles):
         )
 
         rows.append([
-            Paragraph(icon, ParagraphStyle(
+            Paragraph("✦", ParagraphStyle(
                 "icon", fontName="Helvetica-Bold", fontSize=10,
                 textColor=sev_color, alignment=TA_CENTER
             )),
-            Paragraph(rec, text_style),
-            Paragraph(sev, sev_style),
+            Paragraph(rec["text"], text_style),
+            Paragraph(sev_label, sev_style),
         ])
 
     if not rows:
@@ -465,13 +465,8 @@ def reco_table(recommendations, styles):
     ]
 
     for i, rec in enumerate(recommendations):
-        rec_lower = rec.lower()
-        if any(k in rec_lower for k in ["invalid", "error", "negative", "critical"]):
-            bg = C_DANGER_BG
-        elif any(k in rec_lower for k in ["missing", "inconsistent", "mixed", "duplicate"]):
-            bg = C_WARN_BG
-        else:
-            bg = C_ACCENT_LIGHT
+        sev = rec.get("severity", "info")
+        _, bg = SEV_COLORS.get(sev, SEV_COLORS["info"])
         style_cmds.append(("BACKGROUND", (0, i), (-1, i), bg))
         style_cmds.append(("BACKGROUND", (2, i), (2, i), C_CARD))
 
@@ -482,116 +477,110 @@ def reco_table(recommendations, styles):
 def generate_pdf_report(filename, cleaned_folder,
                         quality_engine,
                         recommendation_engine):
-    try:
-        filename = request.args.get("filename")
-        cleaned_path = os.path.join(cleaned_folder, "cleaned_" + filename)
-        df = pd.read_csv(cleaned_path)
+    cleaned_path = os.path.join(cleaned_folder, "cleaned_" + filename)
+    df = pd.read_csv(cleaned_path)
 
-        quality_score   = quality_engine(df)
-        recommendations = recommendation_engine(df)
+    quality_score   = quality_engine(df)
+    recommendations = recommendation_engine(df)
 
-        # Missing report
-        missing_data = []
-        for col in df.columns:
-            count = df[col].isnull().sum()
-            if count > 0:
-                pct = round((count / len(df)) * 100, 2)
-                missing_data.append([col, count, f"{pct}%"])
+    # Missing report
+    missing_data = []
+    for col in df.columns:
+        count = df[col].isnull().sum()
+        if count > 0:
+            pct = round((count / len(df)) * 100, 2)
+            missing_data.append([col, count, f"{pct}%"])
 
-        # PDF path
-        pdf_path = os.path.join(
-            cleaned_folder,
-            "report_" + filename.replace(".csv", ".pdf")
+    # PDF path
+    pdf_path = os.path.join(
+        cleaned_folder,
+        "report_" + filename.replace(".csv", ".pdf")
+    )
+
+    # ── BUILD DOC ───────────────────────────────────────
+    doc = SimpleDocTemplate(
+        pdf_path,
+        pagesize=A4,
+        leftMargin=MARGIN,
+        rightMargin=MARGIN,
+        topMargin=22*mm,
+        bottomMargin=20*mm,
+    )
+
+    styles   = make_styles()
+    elements = []
+    avail_w  = PAGE_W - 2*MARGIN
+
+    # ── TITLE BLOCK ─────────────────────────────────────
+    elements.append(Spacer(1, 6))
+    elements.append(Paragraph("Data Quality Report", styles["report_title"]))
+    elements.append(Paragraph(
+        f"Dataset: <b>{filename}</b> &nbsp;·&nbsp; Generated: {datetime.now().strftime('%d %b %Y, %H:%M')}",
+        styles["report_sub"]
+    ))
+    elements.append(Spacer(1, 14))
+    elements.append(HRFlowable(
+        width=avail_w, thickness=0.5,
+        color=C_BORDER, spaceAfter=14
+    ))
+
+    # ── QUALITY SCORE ────────────────────────────────────
+    elements.append(section_header("Quality Score", "", styles))
+    elements.append(Spacer(1, 8))
+    elements.append(quality_card(quality_score, styles))
+    elements.append(Spacer(1, 16))
+
+    # ── KPI CARDS ────────────────────────────────────────
+    elements.append(section_header("Dataset Overview", "", styles))
+    elements.append(Spacer(1, 8))
+    elements.append(kpi_row(df, styles))
+    elements.append(Spacer(1, 16))
+
+    # ── MISSING REPORT ───────────────────────────────────
+    elements.append(section_header("Missing Value Report", "", styles))
+    elements.append(Spacer(1, 8))
+    if missing_data:
+        elements.append(missing_table(missing_data, styles))
+    else:
+        no_miss = Table(
+            [[Paragraph("✓  No missing values found — dataset is complete!", ParagraphStyle(
+                "ok", fontName="Helvetica", fontSize=9.5, textColor=C_SUCCESS
+            ))]],
+            colWidths=[avail_w],
         )
+        no_miss.setStyle(TableStyle([
+            ("BACKGROUND",    (0,0), (-1,-1), C_SUCCESS_BG),
+            ("BOX",           (0,0), (-1,-1), 0.5, C_SUCCESS),
+            ("TOPPADDING",    (0,0), (-1,-1), 10),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 10),
+            ("LEFTPADDING",   (0,0), (-1,-1), 12),
+        ]))
+        elements.append(no_miss)
+    elements.append(Spacer(1, 16))
 
-        # ── BUILD DOC ───────────────────────────────────────
-        doc = SimpleDocTemplate(
-            pdf_path,
-            pagesize=A4,
-            leftMargin=MARGIN,
-            rightMargin=MARGIN,
-            topMargin=22*mm,
-            bottomMargin=20*mm,
+    # ── AI RECOMMENDATIONS ───────────────────────────────
+    elements.append(section_header("AI Recommendations", "", styles))
+    elements.append(Spacer(1, 8))
+    elements.append(reco_table(recommendations, styles))
+    elements.append(Spacer(1, 16))
+
+    # ── FOOTER NOTE ──────────────────────────────────────
+    elements.append(HRFlowable(
+        width=avail_w, thickness=0.5,
+        color=C_BORDER, spaceBefore=6
+    ))
+    elements.append(Spacer(1, 6))
+    elements.append(Paragraph(
+        "This report was generated automatically by CleanSight AI. "
+        "Results are based on the cleaned version of your dataset.",
+        ParagraphStyle(
+            "footer_note", fontName="Helvetica", fontSize=8,
+            textColor=C_TEXT3, leading=12
         )
+    ))
 
-        styles   = make_styles()
-        elements = []
-        avail_w  = PAGE_W - 2*MARGIN
+    # ── BUILD WITH WATERMARK CANVAS ──────────────────────
+    doc.build(elements, canvasmaker=WatermarkCanvas)
 
-        # ── TITLE BLOCK ─────────────────────────────────────
-        elements.append(Spacer(1, 6))
-        elements.append(Paragraph("Data Quality Report", styles["report_title"]))
-        elements.append(Paragraph(
-            f"Dataset: <b>{filename}</b> &nbsp;·&nbsp; Generated: {datetime.now().strftime('%d %b %Y, %H:%M')}",
-            styles["report_sub"]
-        ))
-        elements.append(Spacer(1, 14))
-        elements.append(HRFlowable(
-            width=avail_w, thickness=0.5,
-            color=C_BORDER, spaceAfter=14
-        ))
+    return pdf_path
 
-        # ── QUALITY SCORE ────────────────────────────────────
-        elements.append(section_header("Quality Score", "", styles))
-        elements.append(Spacer(1, 8))
-        elements.append(quality_card(quality_score, styles))
-        elements.append(Spacer(1, 16))
-
-        # ── KPI CARDS ────────────────────────────────────────
-        elements.append(section_header("Dataset Overview", "", styles))
-        elements.append(Spacer(1, 8))
-        elements.append(kpi_row(df, styles))
-        elements.append(Spacer(1, 16))
-
-        # ── MISSING REPORT ───────────────────────────────────
-        elements.append(section_header("Missing Value Report", "", styles))
-        elements.append(Spacer(1, 8))
-        if missing_data:
-            elements.append(missing_table(missing_data, styles))
-        else:
-            no_miss = Table(
-                [[Paragraph("✓  No missing values found — dataset is complete!", ParagraphStyle(
-                    "ok", fontName="Helvetica", fontSize=9.5, textColor=C_SUCCESS
-                ))]],
-                colWidths=[avail_w],
-            )
-            no_miss.setStyle(TableStyle([
-                ("BACKGROUND",    (0,0), (-1,-1), C_SUCCESS_BG),
-                ("BOX",           (0,0), (-1,-1), 0.5, C_SUCCESS),
-                ("TOPPADDING",    (0,0), (-1,-1), 10),
-                ("BOTTOMPADDING", (0,0), (-1,-1), 10),
-                ("LEFTPADDING",   (0,0), (-1,-1), 12),
-            ]))
-            elements.append(no_miss)
-        elements.append(Spacer(1, 16))
-
-        # ── AI RECOMMENDATIONS ───────────────────────────────
-        elements.append(section_header("AI Recommendations", "", styles))
-        elements.append(Spacer(1, 8))
-        elements.append(reco_table(recommendations, styles))
-        elements.append(Spacer(1, 16))
-
-        # ── FOOTER NOTE ──────────────────────────────────────
-        elements.append(HRFlowable(
-            width=avail_w, thickness=0.5,
-            color=C_BORDER, spaceBefore=6
-        ))
-        elements.append(Spacer(1, 6))
-        elements.append(Paragraph(
-            "This report was generated automatically by CleanSight AI. "
-            "Results are based on the cleaned version of your dataset.",
-            ParagraphStyle(
-                "footer_note", fontName="Helvetica", fontSize=8,
-                textColor=C_TEXT3, leading=12
-            )
-        ))
-
-        # ── BUILD WITH WATERMARK CANVAS ──────────────────────
-        doc.build(elements, canvasmaker=WatermarkCanvas)
-
-        return pdf_path
-
-    except Exception:
-        print(traceback.format_exc())
-        flash("PDF generation failed.", "danger")
-        return redirect("/")

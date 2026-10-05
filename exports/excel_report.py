@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import traceback
+from utils import sanitize_dataframe_for_excel
 from engines.profiling_engine import profiling_engine
 from engines.quality_engine import quality_engine
 from engines.recommendation_engine import recommendation_engine
@@ -33,6 +34,7 @@ XL_WARN_BG     = "FAEEDA"
 XL_DANGER      = "A32D2D"
 XL_DANGER_BG   = "FCEBEB"
 XL_WHITE       = "FFFFFF"
+MAX_STYLED_ROWS= 2000
 
 
 # ── STYLE HELPERS ────────────────────────────────────────────
@@ -73,9 +75,11 @@ def _set_col_widths(ws, widths):
 def _freeze(ws, cell="A2"):
     ws.freeze_panes = cell
 
-def _autofit_col(ws, col_idx, min_w=10, max_w=40):
+def _autofit_col(ws, col_idx, min_w=10, max_w=40, max_scan_rows=None):
     col_letter = get_column_letter(col_idx)
     col_cells  = ws[col_letter]
+    if max_scan_rows is not None:
+        col_cells = col_cells[:max_scan_rows + 1]  # +1 to include header row
     length = max(
         (len(str(c.value)) if c.value else 0) for c in col_cells
     )
@@ -214,7 +218,9 @@ def _style_cleaned_sheet(wb, df):
     _apply_header_row(ws, 1, headers)
     _freeze(ws, "A2")
 
-    for row_idx in range(2, len(df) + 2):
+    styled_row_limit = min(len(df), MAX_STYLED_ROWS)
+
+    for row_idx in range(2, styled_row_limit + 2):
         bg = XL_WHITE if row_idx % 2 == 0 else XL_BG
         for col_idx in range(1, len(headers) + 1):
             cell = ws.cell(row=row_idx, column=col_idx)
@@ -224,7 +230,15 @@ def _style_cleaned_sheet(wb, df):
             cell.border    = _border_bottom(XL_BORDER_CLR)
 
     for col_idx in range(1, len(headers) + 1):
-        _autofit_col(ws, col_idx)
+        _autofit_col(ws, col_idx, max_scan_rows=styled_row_limit)
+
+    if len(df) > MAX_STYLED_ROWS:
+        note_row = styled_row_limit + 3
+        note = ws.cell(row=note_row, column=1,
+            value=f"Note: styling applied to first {MAX_STYLED_ROWS:,} rows for performance. "
+                  f"All {len(df):,} rows are present in the table above and in the CSV export."
+        )
+        note.font = _font(italic=True, color=XL_TEXT3, size=8)
 
     # Register as a table for Excel filter/sort UI
     if len(df) > 0:
@@ -421,6 +435,12 @@ def _style_profile_sheet(wb, profile):
 
 
 # ── SHEET: AI RECOMMENDATIONS ────────────────────────────────
+SEVERITY_STYLE = {
+    "critical": (XL_DANGER, XL_DANGER_BG),
+    "warning":  (XL_WARN, XL_WARN_BG),
+    "info":     (XL_ACCENT, XL_ACCENT_LIGHT),
+}
+
 def _style_reco_sheet(wb, recommendations):
     ws = wb["AI Recommendations"]
     ws.sheet_view.showGridLines = False
@@ -441,35 +461,14 @@ def _style_reco_sheet(wb, recommendations):
     _apply_header_row(ws, 3, headers)
     ws.row_dimensions[3].height = 22
 
-    category_map = {
-        "email":     "Format",
-        "phone":     "Format",
-        "date":      "Format",
-        "negative":  "Outlier",
-        "outlier":   "Outlier",
-        "missing":   "Missing",
-        "duplicate": "Duplicate",
-        "casing":    "Consistency",
-        "inconsist": "Consistency",
-        "invalid":   "Validation",
-        "boolean":   "Format",
-    }
-
     for i, rec in enumerate(recommendations, start=4):
         ws.row_dimensions[i].height = 22
-        rec_lower = rec.lower()
 
-        if any(k in rec_lower for k in ["invalid","error","negative","critical"]):
-            sev, sev_color, bg = "CRITICAL", XL_DANGER, XL_DANGER_BG
-        elif any(k in rec_lower for k in ["missing","inconsistent","mixed","duplicate"]):
-            sev, sev_color, bg = "WARNING", XL_WARN, XL_WARN_BG
-        else:
-            sev, sev_color, bg = "INFO", XL_ACCENT, XL_ACCENT_LIGHT
-
-        cat = next(
-            (v for k, v in category_map.items() if k in rec_lower),
-            "General"
-        )
+        sev = rec.get("severity", "info")
+        sev_color, bg = SEVERITY_STYLE.get(sev, SEVERITY_STYLE["info"])
+        sev_label = sev.upper()
+        cat = rec.get("category", "General")
+        text = rec.get("text", "")
 
         num = ws.cell(row=i, column=1, value=i - 3)
         num.font      = _font(color=XL_TEXT3, size=8)
@@ -477,13 +476,13 @@ def _style_reco_sheet(wb, recommendations):
         num.alignment = _align("center")
         num.border    = _border(XL_BORDER_CLR)
 
-        txt = ws.cell(row=i, column=2, value=rec)
+        txt = ws.cell(row=i, column=2, value=text)
         txt.font      = _font(color=XL_TEXT, size=9)
         txt.fill      = _fill(bg)
         txt.alignment = _align("left", wrap=True)
         txt.border    = _border(XL_BORDER_CLR)
 
-        sev_c = ws.cell(row=i, column=3, value=sev)
+        sev_c = ws.cell(row=i, column=3, value=sev_label)
         sev_c.font      = _font(bold=True, color=XL_WHITE, size=8)
         sev_c.fill      = _fill(sev_color)
         sev_c.alignment = _align("center")
@@ -504,7 +503,7 @@ def generate_excel_report(filename,cleaned_folder,df,missing_report,profile,reco
             cleaned_folder,
             "report_" + filename.replace(".csv", ".xlsx")
         )
-
+        df= sanitize_dataframe_for_excel(df)
         # ── Write raw data via pandas ──────────────────────
         with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Cleaned Data", index=False)
@@ -517,9 +516,11 @@ def generate_excel_report(filename,cleaned_folder,df,missing_report,profile,reco
                 profile.items(), columns=["Metric","Value"]
             ).to_excel(writer, sheet_name="Profile Summary", index=False)
 
-            pd.DataFrame(
-                {"Recommendations": recommendations}
-            ).to_excel(writer, sheet_name="AI Recommendations", index=False)
+            pd.DataFrame({
+                "Recommendation": [r["text"] for r in recommendations],
+                "Severity":       [r["severity"] for r in recommendations],
+                "Category":       [r["category"] for r in recommendations],
+            }).to_excel(writer, sheet_name="AI Recommendations", index=False)
 
         # ── Re-open with openpyxl to apply full styling ────
         wb = load_workbook(excel_path)

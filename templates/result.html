@@ -989,31 +989,21 @@
       </span>
     </div>
     <div class="reco-list">
-      {% for rec in recommendations %}
+            {% for rec in recommendations %}
       <div class="reco-item">
         <div class="reco-icon
-          {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}danger
-          {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower or 'mixed' in rec | lower %}warn
+          {% if rec.severity == 'critical' %}danger
+          {% elif rec.severity == 'warning' %}warn
           {% else %}info{% endif %}">
-          <i class="ti
-            {% if 'email' in rec | lower %}ti-at
-            {% elif 'date' in rec | lower %}ti-calendar
-            {% elif 'phone' in rec | lower %}ti-phone
-            {% elif 'duplicate' in rec | lower %}ti-copy
-            {% elif 'negative' in rec | lower %}ti-trending-down
-            {% elif 'missing' in rec | lower %}ti-cell-signal-off
-            {% else %}ti-alert-circle{% endif %}">
-          </i>
+          <i class="ti {{ rec.icon }}"></i>
         </div>
         <div class="reco-body">
-          <div class="reco-text">{{ rec }}</div>
+          <div class="reco-text">{{ rec.text }}</div>
           <span class="reco-pill
-            {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}danger
-            {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower or 'mixed' in rec | lower %}warn
+            {% if rec.severity == 'critical' %}danger
+            {% elif rec.severity == 'warning' %}warn
             {% else %}info{% endif %}">
-            {% if 'invalid' in rec | lower or 'error' in rec | lower or 'negative' in rec | lower %}Critical
-            {% elif 'missing' in rec | lower or 'inconsistent' in rec | lower %}Warning
-            {% else %}Info{% endif %}
+            {{ rec.severity | capitalize }}
           </span>
         </div>
       </div>

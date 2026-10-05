@@ -1,4 +1,10 @@
 from flask import Flask,redirect, render_template, request, send_file,flash
+from utils import (
+    safe_upload_filename,
+    is_allowed_extension,
+    sanitize_dataframe_for_excel,
+    dedupe_columns,
+)
 import traceback
 from exports.report import generate_pdf_report
 from exports.excel_report import generate_excel_report
@@ -18,7 +24,7 @@ import os
 
 
 app = Flask(__name__)
-app.secret_key = "cleansight-secret-key"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024   # 16MB
 
 UPLOAD_FOLDER = "uploads"
@@ -37,32 +43,44 @@ def upload():
         if not file or file.filename == "":
             flash("No file selected.", "danger")
             return redirect("/")
-        ALLOWED_EXTENSIONS = {"csv", "xlsx", "xls"}
-        ext = file.filename.rsplit(".", 1)[-1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
+        if not is_allowed_extension(file.filename):
             flash("Only CSV and Excel files are allowed.", "danger")
             return redirect("/")
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+        stored_filename, ext = safe_upload_filename(file.filename)
+        file_path = os.path.join(UPLOAD_FOLDER, stored_filename)
         file.save(file_path)
         if os.path.getsize(file_path) == 0:
             flash("Uploaded file is empty.", "danger")
             return redirect("/")
         # read based on file type
+        
         if ext == "csv":
-            with open(file_path, "r", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                raw_headers = next(reader)
+            # Detect the working encoding once, reuse it for both the header
+            # check and the actual read — fixes the utf-8-only crash (C4)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    reader = csv.reader(f)
+                    raw_headers = next(reader)
+                csv_encoding = "utf-8"
+            except UnicodeDecodeError:
+                with open(file_path, "r", encoding="latin1") as f:
+                    reader = csv.reader(f)
+                    raw_headers = next(reader)
+                csv_encoding = "latin1"
+            except StopIteration:
+                flash("Uploaded file appears to be empty or invalid.", "danger")
+                return redirect("/")
+
             if len(raw_headers) != len(set(raw_headers)):
                 duplicates = [x for x in raw_headers if raw_headers.count(x) > 1]
                 flash(f"Duplicate column names found: {', '.join(set(duplicates))}", "danger")
                 return redirect("/")
-            try:
-                df = pd.read_csv(file_path, encoding="utf-8")
-            except UnicodeDecodeError:
-                df = pd.read_csv(file_path, encoding="latin1")
+
+            df = pd.read_csv(file_path, encoding=csv_encoding)
 
         else:
             df = pd.read_excel(file_path)
+        df = dedupe_columns(df)
         # now check empty dataframe
         if df.empty:
             flash("Dataset has no rows to process.", "danger")
@@ -91,11 +109,9 @@ def upload():
         if duplicate_count > 0:
             issue_count += 1
         remaining_issues = len(recommendations)
-        if recommendations == ["Dataset looks clean."]:
-            remaining_issues = 0
         return render_template(
             "tool.html",
-            filename=file.filename,
+            filename=stored_filename,
             tables=tables,
             columns=df.columns,
 
@@ -121,10 +137,16 @@ def clean():
     try:
         filename = request.form["filename"]
         file_path = os.path.join(UPLOAD_FOLDER, filename)
-        try:
-            df = pd.read_csv(file_path, encoding="utf-8",on_bad_lines="skip")
-        except UnicodeDecodeError:
-            df = pd.read_csv(file_path, encoding="latin1",on_bad_lines="skip")
+        ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+        if ext == "csv":
+            try:
+                df = pd.read_csv(file_path, encoding="utf-8", on_bad_lines="skip")
+            except UnicodeDecodeError:
+                df = pd.read_csv(file_path, encoding="latin1", on_bad_lines="skip")
+        else:
+            df = pd.read_excel(file_path)
+        df = dedupe_columns(df)
         df=df.dropna(how="all")
         df=df.loc[:,~df.columns.str.contains("^unnamed")]
         #save the original data
@@ -149,11 +171,6 @@ def clean():
         profile = profiling_engine(df)
         quality_score = quality_engine(df)
         recommendations = recommendation_engine(df)
-        excel_path = os.path.join( CLEANED_FOLDER, "cleaned_" + filename.rsplit(".", 1)[0] + ".xlsx")
-        with pd.ExcelWriter(excel_path) as writer:
-            df.to_excel(writer, sheet_name="Cleaned Data", index=False)
-            pd.DataFrame(missing_report).T.to_excel(writer,sheet_name="Missing Report")
-            pd.DataFrame([profile]).to_excel(writer,sheet_name="Profile Summary",index=False)
         # Quality color logic
         if quality_score >= 80:
             quality_color = "var(--success)"
@@ -287,4 +304,5 @@ def too_large(e):
     return redirect("/")
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
+    app.run(debug=debug_mode)
