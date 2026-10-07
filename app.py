@@ -1,4 +1,5 @@
 from flask import Flask,redirect, render_template, request, send_file,flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from utils import (
     safe_upload_filename,
     is_allowed_extension,
@@ -21,22 +22,60 @@ from engines.duplicate_engine import duplicate_engine
 from engines.data_type_engine import data_type_engine
 import pandas as pd
 import os
-
+from flask_sqlalchemy import SQLAlchemy
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-me")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024   # 16MB
+db_url = os.environ.get("DATABASE_URL", "")
+db_url = db_url.replace("postgres://", "postgresql://", 1)
+db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+from extensions import db
+
+app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"  # redirects here if a @login_required route is hit while logged out
+login_manager.login_message = "Please log in to continue."
+login_manager.login_message_category = "warning"
+
+from models import User, UploadedFile  # noqa: E402
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
 UPLOAD_FOLDER = "uploads"
 CLEANED_FOLDER = "cleaned"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CLEANED_FOLDER, exist_ok=True)
+def get_owned_file_or_404(stored_filename):
+    """
+    Looks up a file record and confirms the CURRENT logged-in user owns it.
+    Returns the UploadedFile record if valid, or None if not found / not owned.
+    Every route that touches a specific file must call this before doing anything else.
+    """
+    record = UploadedFile.query.filter_by(stored_filename=stored_filename).first()
+    if not record:
+        return None
+    if record.user_id != current_user.id:
+        return None
+    return record
+
 @app.route("/")
 def home():
     return render_template("index.html")
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload():
     try:
         file = request.files["file"]
@@ -49,6 +88,13 @@ def upload():
         stored_filename, ext = safe_upload_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, stored_filename)
         file.save(file_path)
+        new_file_record = UploadedFile(
+            user_id=current_user.id,
+            stored_filename=stored_filename,
+            original_filename=file.filename,
+        )
+        db.session.add(new_file_record)
+        db.session.commit()
         if os.path.getsize(file_path) == 0:
             flash("Uploaded file is empty.", "danger")
             return redirect("/")
@@ -133,9 +179,16 @@ def upload():
 # CLEAN ENGINE
 # ---------------------------
 @app.route("/clean", methods=["POST"])
+@login_required
 def clean():
     try:
         filename = request.form["filename"]
+
+        owned = get_owned_file_or_404(filename)
+        if not owned:
+            flash("File not found or access denied.", "danger")
+            return redirect("/")
+
         file_path = os.path.join(UPLOAD_FOLDER, filename)
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
@@ -152,6 +205,13 @@ def clean():
         #save the original data
         original_df = df.copy()
         changes = []
+        # Drop all-null columns — mirrors /upload's logic (fixes C3)
+        all_null_cols = df.columns[df.isnull().all()].tolist()
+        if all_null_cols:
+            df = df.drop(columns=all_null_cols)
+            changes.append(f"Dropped all-null columns: {', '.join(all_null_cols)}")
+
+
         # ---------------- SCHEMA ENGINE ----------------
         df, changes = schema_engine(df, request, changes)
         # ---------------- formatting DATA ----------------
@@ -213,9 +273,16 @@ def clean():
 # DOWNLOAD
 # ---------------------------
 @app.route("/download", methods=["POST"])
+@login_required
 def download():
     try:
         filename = request.form["filename"]
+
+        owned = get_owned_file_or_404(filename)
+        if not owned:
+            flash("File not found or access denied.", "danger")
+            return redirect("/")
+
         cleaned_path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
         return send_file(cleaned_path, as_attachment=True)
     except Exception as e:
@@ -223,9 +290,15 @@ def download():
         flash("Download failed.", "danger")
         return redirect("/")
 @app.route("/download/excel", methods=["GET"])
+@login_required
 def download_excel():
     try:
         filename = request.args.get("filename")
+
+        owned = get_owned_file_or_404(filename)
+        if not owned:
+            flash("File not found or access denied.", "danger")
+            return redirect("/")
 
         cleaned_path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
 
@@ -267,22 +340,31 @@ def download_excel():
         flash("Excel generation failed.", "danger")
         return redirect("/")
 @app.route("/download/csv")
+@login_required
 def download_csv():
     try:
         filename = request.args.get("filename")
-        path = os.path.join(
-            CLEANED_FOLDER,
-            "cleaned_" + filename
-        )
-        return send_file(path, as_attachment=True)
 
+        owned = get_owned_file_or_404(filename)
+        if not owned:
+            flash("File not found or access denied.", "danger")
+            return redirect("/")
+
+        path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
+        return send_file(path, as_attachment=True)
     except:
         flash("CSV file not found.", "danger")
         return redirect("/")
 @app.route("/report")
+@login_required
 def report():
     try:
         filename = request.args.get("filename")
+
+        owned = get_owned_file_or_404(filename)
+        if not owned:
+            flash("File not found or access denied.", "danger")
+            return redirect("/")
 
         pdf_path = generate_pdf_report(
             filename,
@@ -302,6 +384,66 @@ def report():
 def too_large(e):
     flash("File too large. Max allowed size is 16MB.", "danger")
     return redirect("/")
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if not email or not password:
+            flash("Email and password are required.", "danger")
+            return redirect("/signup")
+
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect("/signup")
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "danger")
+            return redirect("/signup")
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash("An account with this email already exists.", "danger")
+            return redirect("/signup")
+
+        new_user = User(email=email)
+        new_user.set_password(password)
+        db.session.add(new_user)
+        db.session.commit()
+
+        login_user(new_user)
+        flash("Account created successfully.", "success")
+        return redirect("/")
+
+    return render_template("signup.html")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        user = User.query.filter_by(email=email).first()
+
+        if not user or not user.check_password(password):
+            flash("Invalid email or password.", "danger")
+            return redirect("/login")
+
+        login_user(user)
+        flash("Logged in successfully.", "success")
+        return redirect("/")
+
+    return render_template("login.html")
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("Logged out.", "success")
+    return redirect("/")
+
 
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"

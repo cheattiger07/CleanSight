@@ -1024,7 +1024,7 @@
 
   <div class="export-grid">
 
-    <a href="/download/csv?filename={{ filename }}" class="export-card">
+<a href="/download/csv?filename={{ filename | urlencode }}" class="export-card">
       <div class="export-icon csv">
         <i class="ti ti-file-type-csv"></i>
       </div>
@@ -1044,7 +1044,7 @@
       </div>
     </a>
 
-    <a href="/report?filename={{ filename }}" class="export-card report">
+<a href="/report?filename={{ filename | urlencode }}" class="export-card report">
       <div class="export-icon pdf">
         <i class="ti ti-report-analytics"></i>
       </div>
