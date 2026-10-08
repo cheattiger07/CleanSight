@@ -1,0 +1,31 @@
+<style>
+  .cs-nav {
+    position: fixed; top: 14px; right: 16px; z-index: 1000;
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Outfit', sans-serif; font-size: 13px;
+  }
+  .cs-nav-user {
+    color: #9ca3af; max-width: 220px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap;
+    padding: 6px 10px; border-radius: 8px;
+    background: rgba(15,17,23,0.85); border: 0.5px solid rgba(255,255,255,0.1);
+  }
+  .cs-nav-btn {
+    color: #e5e7eb; text-decoration: none; padding: 6px 12px; border-radius: 8px;
+    background: rgba(15,17,23,0.85); border: 0.5px solid rgba(255,255,255,0.15);
+    transition: border-color .15s, opacity .15s;
+  }
+  .cs-nav-btn:hover { border-color: #3b82f6; }
+  .cs-nav-btn.primary { background: linear-gradient(135deg,#1e3a8a,#3b82f6); border-color: transparent; color: #fff; }
+  @media (max-width: 520px) { .cs-nav-user { display: none; } }
+</style>
+<nav class="cs-nav">
+  {% if current_user.is_authenticated %}
+    <span class="cs-nav-user">{{ current_user.email }}</span>
+    <a href="/" class="cs-nav-btn">New file</a>
+    <a href="/logout" class="cs-nav-btn">Log out</a>
+  {% else %}
+    <a href="/login" class="cs-nav-btn">Log in</a>
+    <a href="/signup" class="cs-nav-btn primary">Sign up</a>
+  {% endif %}
+</nav>

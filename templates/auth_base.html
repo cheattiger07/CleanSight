@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}CleanSight{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@400;500&family=Outfit:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 3rem 1.5rem; font-family: 'Outfit', sans-serif;
+      background:
+        radial-gradient(circle at top left, #0d1f3c 0%, transparent 40%),
+        radial-gradient(circle at bottom right, #1a0a2e 0%, transparent 40%),
+        #080b12;
+    }
+    .wrap { width: 100%; max-width: 420px; }
+    .cs-card {
+      background: #0f1117; border: 0.5px solid rgba(255,255,255,0.08);
+      border-radius: 12px; padding: 2.5rem 2.25rem;
+    }
+    .cs-title { font-family: 'DM Serif Display', serif; font-size: 34px; font-weight: 400; color: #f0f0f0; letter-spacing: -0.5px; }
+    .cs-title span { color: #185fa5; }
+    .cs-sub { font-size: 14px; color: #888; margin: 6px 0 1.75rem; line-height: 1.6; }
+    label { display: block; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: #888; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 11px 12px; margin-bottom: 1rem; border-radius: 8px;
+      background: #0b0d12; color: #f0f0f0; font-family: 'Outfit', sans-serif; font-size: 14px;
+      border: 0.5px solid rgba(255,255,255,0.14); outline: none;
+    }
+    input:focus { border-color: #3b82f6; }
+    .hint { font-size: 12px; color: #6b7280; margin: -0.6rem 0 1rem; }
+    button {
+      width: 100%; padding: 13px; border-radius: 8px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, #1e3a8a, #3b82f6); color: #fff;
+      font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500;
+    }
+    button:hover { opacity: .88; }
+    .switch { margin-top: 1.25rem; text-align: center; font-size: 13px; color: #888; }
+    .switch a { color: #60a5fa; text-decoration: none; }
+    .alert { padding: 11px 12px; margin-bottom: 1rem; border-radius: 8px; font-size: 13px; }
+    .alert.danger  { background:#fcebeb; color:#a32d2d; border:1px solid #f7c1c1; }
+    .alert.success { background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; }
+    .alert.warning { background:#fff4e0; color:#854f0b; border:1px solid #f5d08a; }
+    .alert.info    { background:#e8f1fb; color:#185fa5; border:1px solid #b6d4f2; }
+    .back { display:block; text-align:center; margin-top: 1rem; font-size: 12px; color: #6b7280; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="cs-card">
+      <h1 class="cs-title">Clean<span>Sight</span></h1>
+      {% block content %}{% endblock %}
+    </div>
+    <a class="back" href="/">← Back to home</a>
+  </div>
+</body>
+</html>
