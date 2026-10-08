@@ -752,6 +752,7 @@
   <div class="top-bar-right">
     <a href="/" class="btn"><i class="ti ti-arrow-left"></i> New Clean</a>
     <form action="/download" method="POST" style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="filename" value="{{ filename }}">
       <button type="submit" class="btn btn-success">
         <i class="ti ti-download"></i> Download Cleaned File
@@ -1065,6 +1066,7 @@
       <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">Processed and ready to use</div>
     </div>
     <form action="/download" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="filename" value="{{ filename }}">
       <button type="submit" class="btn btn-success" style="padding:10px 22px;font-size:14px">
         <i class="ti ti-download"></i> Download Cleaned File

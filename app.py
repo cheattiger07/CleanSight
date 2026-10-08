@@ -25,6 +25,8 @@ import os
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 load_dotenv()
+from flask_wtf.csrf import CSRFError
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-me")
@@ -33,13 +35,13 @@ db_url = os.environ.get("DATABASE_URL", "")
 db_url = db_url.replace("postgres://", "postgresql://", 1)
 db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-from extensions import db
+from extensions import db,csrf
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
-
+csrf.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"  # redirects here if a @login_required route is hit while logged out
@@ -384,6 +386,10 @@ def report():
 def too_large(e):
     flash("File too large. Max allowed size is 16MB.", "danger")
     return redirect("/")
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    flash("Your session expired. Please try again.", "warning")
+    return redirect("/")
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -437,11 +443,11 @@ def login():
 
     return render_template("login.html")
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 @login_required
 def logout():
     logout_user()
-    flash("Logged out.", "success")
+    flash("You have been logged out.", "success")
     return redirect("/")
 
 

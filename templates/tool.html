@@ -989,7 +989,8 @@
   <!-- CONTENT -->
   <div class="content" id="main-content">
 
-    <form action="/clean" method="POST" id="clean-form">
+    <form action="/clean" method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="filename" value="{{ filename }}">
 
       <!-- ── SECTION A: OVERVIEW ── -->

@@ -4,6 +4,7 @@
   <p class="cs-sub">Welcome back. L
     +og in to clean your data.</p>
   <form method="POST" action="/login">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label for="email">Email</label>
     <input type="email" id="email" name="email" placeholder="you@company.com" required autofocus>
 
