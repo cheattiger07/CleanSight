@@ -33,8 +33,25 @@ from flask_wtf.csrf import CSRFError
 
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-only-insecure-key-change-me")
+IS_PRODUCTION = os.environ.get("RENDER") == "true"   # Render sets RENDER=true automatically
+
+_secret = os.environ.get("SECRET_KEY")
+if not _secret:
+    if IS_PRODUCTION:
+        raise RuntimeError("SECRET_KEY environment variable must be set in production")
+    _secret = "dev-only-insecure-key-change-me"      # local development only
+app.secret_key = _secret
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024   # 16MB
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,       # JavaScript can't read the cookie
+    SESSION_COOKIE_SAMESITE="Lax",      # not sent on cross-site POSTs
+    SESSION_COOKIE_SECURE=IS_PRODUCTION,  # HTTPS only on Render, still works on http://127.0.0.1
+    REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SAMESITE="Lax",
+    REMEMBER_COOKIE_SECURE=IS_PRODUCTION,
+)
+
 db_url = os.environ.get("DATABASE_URL", "")
 db_url = db_url.replace("postgres://", "postgresql://", 1)
 db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
