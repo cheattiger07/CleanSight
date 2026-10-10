@@ -33,6 +33,8 @@ from flask_wtf.csrf import CSRFError
 
 
 app = Flask(__name__)
+from werkzeug.middleware.proxy_fix import ProxyFix
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 IS_PRODUCTION = os.environ.get("RENDER") == "true"   # Render sets RENDER=true automatically
 
 _secret = os.environ.get("SECRET_KEY")
@@ -56,13 +58,15 @@ db_url = os.environ.get("DATABASE_URL", "")
 db_url = db_url.replace("postgres://", "postgresql://", 1)
 db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-from extensions import db,csrf
+from extensions import db,csrf, limiter
+
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
 csrf.init_app(app)
+limiter.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"  # redirects here if a @login_required route is hit while logged out
@@ -437,6 +441,7 @@ def handle_csrf_error(e):
     flash("Your session expired. Please try again.", "warning")
     return redirect("/")
 @app.route("/signup", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
 def signup():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -475,6 +480,7 @@ def signup():
     return render_template("signup.html")
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("5 per minute", methods=["POST"])
 def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -521,6 +527,7 @@ def verify_email(token):
 
 @app.route("/resend-verification", methods=["POST"])
 @login_required
+@limiter.limit("5 per hour")
 def resend_verification():
     if current_user.email_verified:
         flash("Your email is already verified.", "info")
@@ -539,6 +546,7 @@ def resend_verification():
     return redirect("/")
 
 @app.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("5 per hour", methods=["POST"])
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -588,6 +596,12 @@ def reset_password(token):
         return redirect("/login")
 
     return render_template("reset_password.html", token=token)
+
+@app.errorhandler(429)
+def too_many_requests(e):
+    flash("Too many attempts. Please wait a few minutes and try again.", "warning")
+    return redirect("/login")
+
 
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"
