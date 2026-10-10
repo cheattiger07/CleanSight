@@ -129,7 +129,13 @@
   }
  
   .btn-success:hover { opacity: 0.88; background: var(--success); }
- 
+  .btn-danger {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+  }
+
+  .btn-danger:hover { opacity: 0.88; background: var(--danger); }
   /* ── PAGE ───────────────────────────────────────────── */
   .page { max-width: 1200px; margin: 0 auto; padding: 2rem 2rem 4rem; }
  
@@ -670,9 +676,9 @@
   .compare-grid {
   grid-template-columns: 1fr;
   }
-  <!-- EXPORT CARDS HSDF------------->
+  /* EXPORT CARDS */
   .export-panel{
-  background: var(--card);
+  background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 2rem;
@@ -1058,21 +1064,21 @@
   </div>
 </div>
  
-  <!-- ── EXPORT ──────────────────────────────────────── -->
-  <div class="section-label"><i class="ti ti-download"></i> Export</div>
+    <!-- ── YOUR DATA ───────────────────────────────────── -->
+  <div class="section-label"><i class="ti ti-shield-lock"></i> Your Data</div>
   <div style="background:var(--bg-card);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1.75rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:2rem">
     <div>
-      <div style="font-size:15px;font-weight:500;margin-bottom:4px">Download your clean dataset</div>
-      <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">Processed and ready to use</div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:4px">Delete this file now</div>
+      <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">Files are deleted automatically after 2 hour. You can remove yours immediately.</div>
     </div>
-    <form action="/download" method="POST">
+    <form action="/delete-file" method="POST" onsubmit="return confirm('Permanently delete this file and all its results? This cannot be undone.');">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="filename" value="{{ filename }}">
-      <button type="submit" class="btn btn-success" style="padding:10px 22px;font-size:14px">
-        <i class="ti ti-download"></i> Download Cleaned File
+      <button type="submit" class="btn btn-danger" style="padding:10px 22px;font-size:14px">
+        <i class="ti ti-trash"></i> Delete my file now
       </button>
     </form>
-    </div>
+  </div>
 </div><!-- /page -->
  
 <script>

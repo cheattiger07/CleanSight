@@ -9,6 +9,7 @@ from utils import (
     dedupe_columns,
 )
 import traceback
+from datetime import datetime, timedelta, timezone
 from tokens import generate_token, confirm_token
 from mailer import send_verification_email, send_reset_email
 from exports.report import generate_pdf_report
@@ -96,6 +97,43 @@ def get_owned_file_or_404(stored_filename):
     if record.user_id != current_user.id:
         return None
     return record
+
+FILE_TTL_HOURS = 2
+
+
+def _delete_file_artifacts(stored_filename):
+    """Delete the upload and every generated output (cleaned csv, xlsx, pdf) for one file."""
+    stem = stored_filename.rsplit(".", 1)[0]
+    if len(stem) < 16:          # safety: never match short/empty names
+        return
+    for folder in (UPLOAD_FOLDER, CLEANED_FOLDER):
+        for name in os.listdir(folder):
+            if stem in name:
+                try:
+                    os.remove(os.path.join(folder, name))
+                except OSError:
+                    pass
+
+
+def cleanup_expired_files():
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=FILE_TTL_HOURS)
+    expired = UploadedFile.query.filter(UploadedFile.created_at < cutoff).all()
+    for record in expired:
+        _delete_file_artifacts(record.stored_filename)
+        db.session.delete(record)
+    if expired:
+        db.session.commit()
+
+
+def safe_cleanup():
+    """Never let cleanup problems break a user's request."""
+    try:
+        cleanup_expired_files()
+    except Exception:
+        db.session.rollback()
+        print(traceback.format_exc())
+
+
 def send_verification_for(user):
     base = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
     link = f"{base}/verify/{generate_token(user.email)}"
@@ -432,6 +470,22 @@ def report():
         print(traceback.format_exc())
         flash("PDF generation failed.", "danger")
         return redirect("/")
+
+@app.route("/delete-file", methods=["POST"])
+@login_required
+def delete_file():
+    filename = request.form.get("filename", "")
+    record = get_owned_file_or_404(filename)
+    if not record:
+        flash("File not found or already deleted.", "warning")
+        return redirect("/")
+    _delete_file_artifacts(record.stored_filename)
+    db.session.delete(record)
+    db.session.commit()
+    flash("Your file has been permanently deleted.", "success")
+    return redirect("/")
+
+
 @app.errorhandler(413)
 def too_large(e):
     flash("File too large. Max allowed size is 16MB.", "danger")
