@@ -10,7 +10,7 @@ from utils import (
 )
 import traceback
 from tokens import generate_token, confirm_token
-from mailer import send_verification_email
+from mailer import send_verification_email, send_reset_email
 from exports.report import generate_pdf_report
 from exports.excel_report import generate_excel_report
 import csv 
@@ -88,6 +88,16 @@ def verified_required(f):
             return redirect("/")
         return f(*args, **kwargs)
     return wrapper
+
+def _user_from_reset_token(token):
+    data = confirm_token(token, salt="password-reset", max_age=3600)
+    if not isinstance(data, dict):
+        return None
+    user = User.query.filter_by(email=data.get("e")).first()
+    if not user or user.password_hash[-12:] != data.get("h"):
+        return None
+    return user
+
 
 @app.route("/")
 def home():
@@ -511,6 +521,56 @@ def resend_verification():
         flash("We couldn't send the email. Please try again later.", "danger")
     return redirect("/")
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+
+        wait = 60 - (time.time() - session.get("last_reset_sent", 0))
+        if wait > 0:
+            flash(f"Please wait {int(wait) + 1} seconds before trying again.", "warning")
+            return redirect("/forgot-password")
+        session["last_reset_sent"] = time.time()
+
+        user = User.query.filter_by(email=email).first()
+        if user:
+            base = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+            token = generate_token(
+                {"e": user.email, "h": user.password_hash[-12:]},
+                salt="password-reset",
+            )
+            send_reset_email(user.email, f"{base}/reset-password/{token}")
+
+        flash("If an account exists for that email, we've sent a password reset link.", "info")
+        return redirect("/login")
+
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    user = _user_from_reset_token(token)
+    if not user:
+        flash("This reset link is invalid or has expired. Please request a new one.", "danger")
+        return redirect("/forgot-password")
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.", "danger")
+            return redirect(request.path)
+        if password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return redirect(request.path)
+
+        user.set_password(password)
+        db.session.commit()
+        flash("Password updated. Please log in with your new password.", "success")
+        return redirect("/login")
+
+    return render_template("reset_password.html", token=token)
 
 if __name__ == "__main__":
     debug_mode = os.environ.get("FLASK_DEBUG", "false").lower() == "true"

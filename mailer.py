@@ -46,3 +46,14 @@ def send_verification_email(to_email, link):
     </div>
     """
     return send_email(to_email, "Verify your CleanSight email", html)
+
+def send_reset_email(to_email, link):
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;">
+      <h2>Reset your CleanSight password</h2>
+      <p>We received a request to reset your password. Click the button below to choose a new one.</p>
+      <p><a href="{link}" style="display:inline-block;padding:12px 20px;background:#1e3a8a;color:#fff;text-decoration:none;border-radius:6px;">Reset password</a></p>
+      <p style="color:#666;font-size:13px;">This link expires in 1 hour and works once. If you didn't ask for this, you can ignore this email and your password will stay the same.</p>
+    </div>
+    """
+    return send_email(to_email, "Reset your CleanSight password", html)
