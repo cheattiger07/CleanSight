@@ -167,6 +167,7 @@ def home():
 @verified_required
 def upload():
     try:
+        safe_cleanup()
         file = request.files["file"]
         if not file or file.filename == "":
             flash("No file selected.", "danger")
@@ -527,6 +528,7 @@ def signup():
             flash("Account created. Check your email to verify your address.", "success")
         else:
             flash("Account created, but we couldn't send the verification email. You can resend it later.", "warning")
+        safe_cleanup()
         login_user(new_user)
         session["last_verification_sent"] = time.time()
         return redirect("/")

@@ -34,7 +34,7 @@ class UploadedFile(db.Model):
     stored_filename = db.Column(db.String(255), nullable=False, unique=True)
     original_filename = db.Column(db.String(255), nullable=False)
 
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     def __repr__(self):
         return f"<UploadedFile {self.stored_filename} (user {self.user_id})>"
