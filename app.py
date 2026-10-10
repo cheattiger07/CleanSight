@@ -1,4 +1,6 @@
-from flask import Flask,redirect, render_template, request, send_file,flash
+import time
+from functools import wraps
+from flask import Flask,redirect, render_template, request, send_file,flash,url_for,session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from utils import (
     safe_upload_filename,
@@ -7,6 +9,8 @@ from utils import (
     dedupe_columns,
 )
 import traceback
+from tokens import generate_token, confirm_token
+from mailer import send_verification_email
 from exports.report import generate_pdf_report
 from exports.excel_report import generate_excel_report
 import csv 
@@ -71,6 +75,19 @@ def get_owned_file_or_404(stored_filename):
     if record.user_id != current_user.id:
         return None
     return record
+def send_verification_for(user):
+    base = os.environ.get("APP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
+    link = f"{base}/verify/{generate_token(user.email)}"
+    return send_verification_email(user.email, link)
+
+def verified_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not current_user.email_verified:
+            flash("Please verify your email to use this feature. Check your inbox, or resend the email using the banner at the top.", "warning")
+            return redirect("/")
+        return f(*args, **kwargs)
+    return wrapper
 
 @app.route("/")
 def home():
@@ -78,6 +95,7 @@ def home():
 
 @app.route("/upload", methods=["POST"])
 @login_required
+@verified_required
 def upload():
     try:
         file = request.files["file"]
@@ -182,6 +200,7 @@ def upload():
 # ---------------------------
 @app.route("/clean", methods=["POST"])
 @login_required
+@verified_required
 def clean():
     try:
         filename = request.form["filename"]
@@ -418,9 +437,12 @@ def signup():
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
-
+        if send_verification_for(new_user):
+            flash("Account created. Check your email to verify your address.", "success")
+        else:
+            flash("Account created, but we couldn't send the verification email. You can resend it later.", "warning")
         login_user(new_user)
-        flash("Account created successfully.", "success")
+        session["last_verification_sent"] = time.time()
         return redirect("/")
 
     return render_template("signup.html")
@@ -448,6 +470,45 @@ def login():
 def logout():
     logout_user()
     flash("You have been logged out.", "success")
+    return redirect("/")
+
+@app.route("/verify/<token>")
+def verify_email(token):
+    email = confirm_token(token)
+    if not email:
+        flash("This verification link is invalid or has expired.", "danger")
+        return redirect("/")
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("This verification link is invalid or has expired.", "danger")
+        return redirect("/")
+
+    if user.email_verified:
+        flash("Your email is already verified.", "info")
+    else:
+        user.email_verified = True
+        db.session.commit()
+        flash("Email verified. You're all set!", "success")
+    return redirect("/")
+
+@app.route("/resend-verification", methods=["POST"])
+@login_required
+def resend_verification():
+    if current_user.email_verified:
+        flash("Your email is already verified.", "info")
+        return redirect("/")
+
+    wait = 60 - (time.time() - session.get("last_verification_sent", 0))
+    if wait > 0:
+        flash(f"Please wait {int(wait) + 1} seconds before requesting another email.", "warning")
+        return redirect("/")
+
+    if send_verification_for(current_user):
+        session["last_verification_sent"] = time.time()
+        flash("Verification email sent. Check your inbox.", "success")
+    else:
+        flash("We couldn't send the email. Please try again later.", "danger")
     return redirect("/")
 
 

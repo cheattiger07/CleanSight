@@ -34,3 +34,26 @@
     <a href="/signup" class="cs-nav-btn primary">Sign up</a>
   {% endif %}
 </nav>
+{% if current_user.is_authenticated and not current_user.email_verified %}
+<style>
+  body { padding-top: 100px !important; }
+  .cs-verify-banner {
+    position: fixed; top: 48px; left: 0; right: 0; height: 40px; z-index: 999;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #fff4e0; color: #854f0b; border-bottom: 1px solid #f5d08a;
+    font-family: 'Outfit', sans-serif; font-size: 13px; padding: 0 12px;
+  }
+  .cs-verify-banner form { margin: 0; }
+  .cs-verify-banner button {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: #854f0b; font: inherit; text-decoration: underline;
+  }
+</style>
+<div class="cs-verify-banner">
+  <span>Please verify your email to start cleaning data.</span>
+  <form method="POST" action="/resend-verification">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">Resend email</button>
+  </form>
+</div>
+{% endif %}
