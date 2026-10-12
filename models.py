@@ -38,3 +38,18 @@ class UploadedFile(db.Model):
 
     def __repr__(self):
         return f"<UploadedFile {self.stored_filename} (user {self.user_id})>"
+
+class UsageEvent(db.Model):
+    __tablename__ = "usage_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    stored_filename = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(
+        db.DateTime, nullable=False, index=True,
+        default=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "stored_filename", name="uq_usage_user_file"),
+    )
