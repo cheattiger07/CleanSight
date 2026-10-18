@@ -1047,7 +1047,7 @@
       </div>
       <div>
         <h4>Download Excel</h4>
-        <span>3-sheet workbook (.xlsx)</span>
+        <span>{% if user_plan and not user_plan.excel_export %}🔒 Student plan{% else %}3-sheet workbook (.xlsx){% endif %}</span>
       </div>
     </a>
 
@@ -1057,7 +1057,7 @@
       </div>
       <div>
         <h4>Generate PDF</h4>
-        <span>Full quality report</span>
+        <span>{% if user_plan and not user_plan.pdf_export %}🔒 Student plan{% else %}Full quality report{% endif %}</span>
       </div>
     </a>
 
@@ -1070,6 +1070,9 @@
     <div>
       <div style="font-size:15px;font-weight:500;margin-bottom:4px">Delete this file now</div>
       <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono)">Files are deleted automatically after 2 hour. You can remove yours immediately.</div>
+      {% if user_plan %}
+<p class="cs-drop-hint">{{ user_plan.name }} plan · {{ usage_this_month }} of {{ user_plan.files_per_month }} files used this month</p>
+{% endif %}
     </div>
     <form action="/delete-file" method="POST" onsubmit="return confirm('Permanently delete this file and all its results? This cannot be undone.');">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

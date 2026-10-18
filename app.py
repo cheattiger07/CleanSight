@@ -25,6 +25,8 @@ from engines.recommendation_engine import recommendation_engine
 from engines.schema_engine import schema_engine
 from engines.duplicate_engine import duplicate_engine
 from engines.data_type_engine import data_type_engine
+from plans import plan_for_user
+from usage import files_used_this_month, has_counted, record_file_usage
 import pandas as pd
 import os
 from flask_sqlalchemy import SQLAlchemy
@@ -147,6 +149,34 @@ def verified_required(f):
             return redirect("/")
         return f(*args, **kwargs)
     return wrapper
+LIMIT_MESSAGES = {
+    "files": "You've used all {limit} files included in the {plan} plan this month ({used} of {limit}). Your count resets on the 1st of next month.",
+    "size": "This file is larger than the {max_mb} MB limit on the {plan} plan.",
+    "excel": "The Excel report with highlighted results is part of the Student plan.",
+    "pdf": "The PDF quality report is part of the Student plan.",
+}
+
+
+def limit_response(reason):
+    plan = plan_for_user(current_user)
+    message = LIMIT_MESSAGES[reason].format(
+        limit=plan["files_per_month"],
+        used=files_used_this_month(current_user.id),
+        plan=plan["name"],
+        max_mb=plan["max_file_mb"],
+    )
+    return render_template("limit_reached.html", message=message, plan=plan), 403
+
+
+@app.context_processor
+def inject_plan():
+    if current_user.is_authenticated:
+        return {
+            "user_plan": plan_for_user(current_user),
+            "usage_this_month": files_used_this_month(current_user.id),
+        }
+    return {"user_plan": None, "usage_this_month": 0}
+
 
 def _user_from_reset_token(token):
     data = confirm_token(token, salt="password-reset", max_age=3600)
@@ -168,6 +198,9 @@ def home():
 def upload():
     try:
         safe_cleanup()
+        plan = plan_for_user(current_user)
+        if files_used_this_month(current_user.id) >= plan["files_per_month"]:
+            return limit_response("files")
         file = request.files["file"]
         if not file or file.filename == "":
             flash("No file selected.", "danger")
@@ -178,6 +211,9 @@ def upload():
         stored_filename, ext = safe_upload_filename(file.filename)
         file_path = os.path.join(UPLOAD_FOLDER, stored_filename)
         file.save(file_path)
+        if os.path.getsize(file_path) > plan["max_file_mb"] * 1024 * 1024:
+            os.remove(file_path)
+            return limit_response("size")
         new_file_record = UploadedFile(
             user_id=current_user.id,
             stored_filename=stored_filename,
@@ -276,6 +312,10 @@ def clean():
         filename = request.form["filename"]
 
         owned = get_owned_file_or_404(filename)
+        plan = plan_for_user(current_user)
+        if (not has_counted(current_user.id, filename)
+                and files_used_this_month(current_user.id) >= plan["files_per_month"]):
+            return limit_response("files")
         if not owned:
             flash("File not found or access denied.", "danger")
             return redirect("/")
@@ -318,6 +358,7 @@ def clean():
         # ---------------- SAVE CLEANED ----------------
         cleaned_path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
         df.to_csv(cleaned_path, index=False)
+        record_file_usage(current_user.id, filename)
         
         profile = profiling_engine(df)
         quality_score = quality_engine(df)
@@ -387,6 +428,8 @@ def download_excel():
         filename = request.args.get("filename")
 
         owned = get_owned_file_or_404(filename)
+        if not plan_for_user(current_user)["excel_export"]:
+            return limit_response("excel")
         if not owned:
             flash("File not found or access denied.", "danger")
             return redirect("/")
@@ -437,6 +480,7 @@ def download_csv():
         filename = request.args.get("filename")
 
         owned = get_owned_file_or_404(filename)
+
         if not owned:
             flash("File not found or access denied.", "danger")
             return redirect("/")
@@ -453,6 +497,8 @@ def report():
         filename = request.args.get("filename")
 
         owned = get_owned_file_or_404(filename)
+        if not plan_for_user(current_user)["pdf_export"]:
+            return limit_response("pdf")
         if not owned:
             flash("File not found or access denied.", "danger")
             return redirect("/")

@@ -1,0 +1,10 @@
+{% extends "auth_base.html" %}
+{% block title %}Limit reached · CleanSight{% endblock %}
+{% block content %}
+  <p class="cs-sub">{{ message }}</p>
+  <p class="hint" style="margin:0 0 1rem;">Current plan: {{ plan.name }}</p>
+  <button type="button" disabled style="opacity:.6;cursor:not-allowed;">
+    Upgrade to Student: ₹199/month (payments launching soon)
+  </button>
+  <p class="switch"><a href="/">Back to the cleaner</a></p>
+{% endblock %}
