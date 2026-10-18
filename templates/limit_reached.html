@@ -3,8 +3,9 @@
 {% block content %}
   <p class="cs-sub">{{ message }}</p>
   <p class="hint" style="margin:0 0 1rem;">Current plan: {{ plan.name }}</p>
-  <button type="button" disabled style="opacity:.6;cursor:not-allowed;">
-    Upgrade to Student: ₹199/month (payments launching soon)
-  </button>
+  <form method="POST" action="/subscribe">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit">Upgrade to Student: ₹199/month</button>
+</form>
   <p class="switch"><a href="/">Back to the cleaner</a></p>
 {% endblock %}

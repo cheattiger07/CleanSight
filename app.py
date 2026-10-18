@@ -9,6 +9,7 @@ from utils import (
     dedupe_columns,
 )
 import traceback
+import hmac,hashlib,json
 from datetime import datetime, timedelta, timezone
 from tokens import generate_token, confirm_token
 from mailer import send_verification_email, send_reset_email
@@ -80,7 +81,7 @@ login_manager.login_view = "login"  # redirects here if a @login_required route 
 login_manager.login_message = "Please log in to continue."
 login_manager.login_message_category = "warning"
 
-from models import User, UploadedFile  # noqa: E402
+from models import User, UploadedFile,WebhookEvent  # noqa: E402
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -720,6 +721,43 @@ def reset_password(token):
         return redirect("/login")
 
     return render_template("reset_password.html", token=token)
+
+@app.route("/razorpay/webhook", methods=["POST"])
+@csrf.exempt          # Razorpay can't send a CSRF token; the signature protects this route instead
+@limiter.exempt
+def razorpay_webhook():
+    secret = os.environ.get("RAZORPAY_WEBHOOK_SECRET", "")
+    raw = request.get_data()
+    sent_sig = request.headers.get("X-Razorpay-Signature", "")
+    expected = hmac.new(secret.encode(), raw, hashlib.sha256).hexdigest()
+    if not secret or not hmac.compare_digest(expected, sent_sig):
+        return "invalid signature", 400
+
+    event_id = request.headers.get("X-Razorpay-Event-Id", "")
+    payload = json.loads(raw)
+    event = payload.get("event", "")
+
+    # Ignore repeats
+    if event_id and WebhookEvent.query.filter_by(event_id=event_id).first():
+        return "ok", 200
+
+    sub = (payload.get("payload", {}).get("subscription", {}) or {}).get("entity", {})
+    user_id = (sub.get("notes") or {}).get("user_id")
+    user = db.session.get(User, int(user_id)) if user_id else None
+
+    if user:
+        if event in ("subscription.activated", "subscription.charged"):
+            user.plan_tier = "student"
+            user.razorpay_subscription_id = sub.get("id")
+        elif event in ("subscription.cancelled", "subscription.halted", "subscription.completed"):
+            user.plan_tier = "free"
+
+    db.session.add(WebhookEvent(event_id=event_id or f"noid-{time.time()}", event_type=event))
+    db.session.commit()
+    app.logger.info("Razorpay event %s handled (user=%s)", event, user_id)
+    return "ok", 200
+
+
 
 @app.errorhandler(429)
 def too_many_requests(e):

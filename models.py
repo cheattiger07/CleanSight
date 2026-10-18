@@ -15,6 +15,7 @@ class User(db.Model, UserMixin):
     plan_tier = db.Column(db.String(50), default="free", nullable=False)
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    razorpay_subscription_id = db.Column(db.String(64), nullable=True)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
@@ -52,4 +53,13 @@ class UsageEvent(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "stored_filename", name="uq_usage_user_file"),
+    )
+
+class WebhookEvent(db.Model):
+    __tablename__ = "webhook_events"
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.String(100), unique=True, nullable=False)
+    event_type = db.Column(db.String(60), nullable=False)
+    created_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
     )
