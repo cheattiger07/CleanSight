@@ -1,5 +1,6 @@
 import os
 import requests
+import logging
 
 RAZORPAY_API = "https://api.razorpay.com/v1"
 
@@ -39,6 +40,10 @@ def create_subscription(user, plan_env="RAZORPAY_PLAN_STUDENT"):
         raise BillingError("Could not reach the payment provider. Try again.")
 
     if resp.status_code != 200:
+        
+        logging.getLogger(__name__).error(
+            "Razorpay subscription error %s: %s", resp.status_code, resp.text[:500]
+        )
         raise BillingError("The payment provider rejected the request.")
 
     data = resp.json()
