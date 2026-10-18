@@ -16,6 +16,7 @@ from exports.report import generate_pdf_report
 from exports.excel_report import generate_excel_report
 import csv 
 import openpyxl
+from billing import create_subscription, BillingError
 from engines.profiling_engine import profiling_engine
 from engines.missing_engine import missing_engine
 from engines.outlier_engine import outlier_engine
@@ -66,7 +67,10 @@ from extensions import db,csrf, limiter
 
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,   # test the connection before using it; replace it if dead
+    "pool_recycle": 280,     # don't reuse connections older than ~5 minutes
+}
 db.init_app(app)
 csrf.init_app(app)
 limiter.init_app(app)
@@ -672,6 +676,24 @@ def forgot_password():
         return redirect("/login")
 
     return render_template("forgot_password.html")
+
+@app.route("/subscribe", methods=["POST"])
+@login_required
+@verified_required
+@limiter.limit("5 per hour")
+def subscribe():
+    if current_user.plan_tier != "free":
+        flash("You're already on a paid plan.", "success")
+        return redirect("/")
+    try:
+        sub_id, checkout_url = create_subscription(current_user)
+    except BillingError as e:
+        flash(str(e), "warning")
+        return redirect("/")
+    app.logger.info("Subscription %s created for user %s", sub_id, current_user.id)
+    return redirect(checkout_url)
+
+
 
 
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
