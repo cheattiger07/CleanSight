@@ -4,3 +4,4 @@ uploads/
 cleaned/
 *.pyc
 .env
+check_razorpay.py

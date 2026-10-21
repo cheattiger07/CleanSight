@@ -40,9 +40,16 @@ def create_subscription(user, plan_env="RAZORPAY_PLAN_STUDENT"):
         raise BillingError("Could not reach the payment provider. Try again.")
 
     if resp.status_code != 200:
-        
+        import logging
+        key_id, key_secret = _auth()
         logging.getLogger(__name__).error(
-            "Razorpay subscription error %s: %s", resp.status_code, resp.text[:500]
+            "Razorpay error %s: %s | key_prefix=%s key_len=%s secret_len=%s "
+            "key_has_ws=%s secret_has_ws=%s plan_prefix=%s",
+            resp.status_code, resp.text[:300],
+            key_id[:9], len(key_id), len(key_secret),
+            key_id != key_id.strip() or '"' in key_id or "'" in key_id,
+            key_secret != key_secret.strip() or '"' in key_secret or "'" in key_secret,
+            (os.environ.get("RAZORPAY_PLAN_STUDENT") or "")[:5],
         )
         raise BillingError("The payment provider rejected the request.")
 
