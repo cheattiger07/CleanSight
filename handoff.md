@@ -1,167 +1,102 @@
-# CleanSight Handoff (handoff.md)
+# CleanSight Handoff (handoff.md), updated 2026-10-21
 
-Generated 2026-10-16 from a compacted conversation. Items are marked **[CONFIRMED]** (the user reported it working or I saw the file contents), **[INSTRUCTED]** (I gave the instructions but the user hasn't confirmed), or **[VERIFY]** (can't be recovered reliably).
+Markers: **[CONFIRMED]** = the user reported it working or I saw the file contents. **[REPORTED]** = the user said it was done, with no detail. **[INSTRUCTED]** = I gave instructions but the user hasn't confirmed. **[VERIFY]** = unknown, check the real files.
+
+This replaces the 2026-10-16 handoff. Phase 2C, 2D and 2E progress is new.
 
 ---
 
 ## 1. Project overview
 
-- **Purpose:** CleanSight is a data-cleaning web app. Users upload CSV/XLSX files, run cleaning engines, then download results (CSV, Excel with highlights, PDF quality report).
+- **Purpose:** CleanSight is a data-cleaning web app. Users upload CSV/XLSX, run cleaning engines, then download results (CSV, highlighted Excel, PDF quality report).
 - **Version:** building **v2** from a working v1.
-- **Long-term goal:** a production SaaS (Pro tier ₹999/month eventually). Right now there is a cheaper **Student plan (₹199/month)**.
-- **Current audience:** college students and researchers with datasets of about 600–700 rows. AI bot and analytics features come later for professional clients.
-- **User:** beginner, Windows/PowerShell, VS Code. Project path: `C:\Users\praav\OneDrive\Documents\My Projects\CleanSight`.
+- **Goal:** a production SaaS. Student plan ₹199/month now, Pro ₹999/month later.
+- **Audience now:** college students and researchers (datasets of about 600–700 rows). AI bot and analytics come later for professional clients.
+- **User:** beginner, Windows/PowerShell, VS Code. Path: `C:\Users\praav\OneDrive\Documents\My Projects\CleanSight`.
 - **Live URL:** https://cleansight-zajg.onrender.com
 - **Stack:**
-  - Backend: Flask 3.1.3, Pandas 3.0.2, OpenPyXL, Python 3.14, gunicorn (`Procfile`: `web: gunicorn app:app`).
-  - Frontend: HTML/CSS/JS Jinja templates.
-  - Database: Neon Postgres. URI scheme is `postgresql+psycopg://`. Local `.env` and Render share the same Neon DB.
-  - Hosting: Render (free tier, sets `RENDER=true`).
-  - Email: Brevo transactional HTTP API (`https://api.brevo.com/v3/smtp/email`, header `api-key`, free tier 300/day).
-  - Planned payments: Razorpay.
-- **Dependencies:**
-  - Flask-SQLAlchemy 3.1.1, with `sqlalchemy<2.1` pinned (see bugs).
-  - Flask-Login 0.6.3, Flask-WTF 1.2.2 (CSRFProtect), Flask-Limiter (in-memory storage).
-  - `psycopg[binary]==3.2.10`, `requests`, `python-dotenv`, `itsdangerous`.
+  - Flask 3.1.3, Pandas 3.0.2, OpenPyXL, Python 3.14, gunicorn (`Procfile`: `web: gunicorn app:app`), Jinja HTML/CSS/JS.
+  - Neon Postgres (`postgresql+psycopg://`), shared by local `.env` and Render.
+  - Render free tier. Brevo email (HTTP API). Razorpay payments (REST via `requests`, not the `razorpay` package).
+- **Dependencies:** Flask-SQLAlchemy 3.1.1 with `sqlalchemy<2.1` pinned, Flask-Login 0.6.3, Flask-WTF 1.2.2 (CSRF), Flask-Limiter (in-memory), `psycopg[binary]==3.2.10`, `requests`, `python-dotenv`, `itsdangerous`.
 
 ## 2. Features completed
 
-**Phase 1 (Auth) is done except R2 storage [CONFIRMED by user tests, live on Render]:**
-- Signup, login, POST-only logout, and email verification via a signed, expiring, single-use token (salt `email-verify`). Unverified users cannot upload or clean (`verified_required`).
-- Forgot and reset password (salt `password-reset`). The response is the same whether or not the email exists, and resend/reset emails are throttled to once per 60s per session.
-- Security:
-  - CSRF on all POST forms.
-  - Ownership checks via `get_owned_file_or_404`.
-  - Cookies are HttpOnly, SameSite=Lax, and Secure in production.
-  - Fail-safe `SECRET_KEY`.
-  - Rate limiting and ProxyFix(x_for=1).
-  - Formula-injection sanitization and UUID filenames.
-- File lifecycle:
-  - Files expire after `FILE_TTL_HOURS = 2`, cleaned lazily by `safe_cleanup()` on upload and login (there is no scheduler on the free tier). Verified working.
-  - A "delete my file now" button on the results page works.
+**Phase 1 Auth [CONFIRMED, live]:** signup, login, POST-only logout, email verification (signed single-use tokens), password reset, CSRF, ownership checks, secure cookies, rate limiting, fail-safe `SECRET_KEY`, formula-injection sanitising, UUID filenames. Files expire after `FILE_TTL_HOURS = 2` through lazy cleanup (`safe_cleanup()` in `upload()` and `login()`), plus a "delete my file now" button. Cloudflare R2 storage is deferred to the very end of the project.
 
-**Phase 2A–2B (plans and usage) [CONFIRMED]:**
-- `plans.py` has a `PLANS` dict:
-  - **free:** 3 files/month, 5 MB, no Excel, no PDF.
-  - **student:** ₹199, 30 files/month, 16 MB, Excel + PDF + cleaning log.
-  - **pro:** ₹999, 200 files/month, 16 MB, all features.
-  - Helpers: `get_plan(tier)`, `plan_for_user(user)`.
-- `usage_events` table with `UsageEvent` model and unique constraint `uq_usage_user_file`.
-- `usage.py` has `files_used_this_month`, `has_counted`, `record_file_usage` (idempotent), and `month_start` (UTC).
-- `test_usage.py` passed: before 0, first record True, duplicate False, after 1, cleaned up 0.
-- The usage tables were created with `create_tables.py` (one-off `db.create_all()`).
+**Phase 2B usage tracking [CONFIRMED]:** `plans.py` (free: 3 files/month, 5 MB, no Excel/PDF; student ₹199: 30 files, 16 MB, Excel + PDF + cleaning log; pro ₹999: 200 files, 16 MB, all). `usage_events` table (unique per user per file), `usage.py` with `files_used_this_month`, `has_counted`, `record_file_usage`.
 
-**Phase 2C (server-side gating) [INSTRUCTED, NOT confirmed applied or tested]:**
-- `app.py` additions:
-  - Imports `plan_for_user` and the usage helpers.
-  - `LIMIT_MESSAGES` dict and `limit_response(reason)`, which renders `limit_reached.html` with a 403.
-  - `inject_plan` context processor, giving templates `user_plan` and `usage_this_month`.
-- `/upload`: after `safe_cleanup()`, check the monthly file count. After `file.save()`, check size against `plan["max_file_mb"]` and delete the file if too big.
-- `/clean`: if the file hasn't been counted yet and the user is at their limit, block. After writing the cleaned CSV, call `record_file_usage`.
-- `/download/excel` and `/report`: blocked unless the plan allows. CSV stays free.
-- New template `limit_reached.html` (extends `auth_base.html`, shows the message and a disabled "Upgrade to Student ₹199/month (payments launching soon)" button).
-- `result.html`: the Excel and PDF cards show "🔒 Student plan" for free users, and a usage line goes inline-styled in the "Your Data" card.
-- `index.html`, given in the last reply, not confirmed applied:
-  - Change line 257 to `Max {{ user_plan.max_file_mb }} MB`.
-  - Add "Files are automatically deleted after 2 hours." and a plan/usage line.
-  - Wrap the `fileInput` script in `if (input)`.
-  - Replace the duplicate "Fast" footer span.
+**Phase 2C server-side gating [REPORTED]:** the user said "done commited" after the test list. Individual test results were not reported. Includes `limit_response()`, `inject_plan` context processor, upload/clean/Excel/PDF checks and `limit_reached.html`. The Upgrade button on that page POSTs to `/subscribe`.
+
+**Phase 2D Razorpay checkout [CONFIRMED, local and Render]:** `billing.py` has `create_subscription(user)`, which calls `POST https://api.razorpay.com/v1/subscriptions` with plan `RAZORPAY_PLAN_STUDENT`, `total_count 60`, and `notes {user_id, email}`, and returns the hosted checkout `short_url`. `/subscribe` (POST, login + verified required, 5 per hour) redirects there. Errors are logged by `billing.py` (it currently logs safe diagnostics: key prefix, length, last 4 characters of the Key ID, whitespace flags, never the secret).
+
+**Phase 2E webhook [CONFIRMED by the user's checks, "all okay"]:** `POST /razorpay/webhook` is CSRF-exempt and limiter-exempt, and checks an HMAC-SHA256 signature using `RAZORPAY_WEBHOOK_SECRET` (a value the user invented, entered in both Render and the Razorpay webhook form). It skips duplicates through the `webhook_events` table (`event_id` unique). `subscription.activated` and `.charged` set `plan_tier="student"` and store `razorpay_subscription_id`. `.cancelled`, `.halted` and `.completed` set it to `"free"` immediately (a known simplification, to be improved in 2F). The user paid with a test card on the live site, and the plan upgraded.
+
+**Home page plan line [CONFIRMED]:** shows "<Plan> plan · X of Y files used this month". The user finds it easy to miss, so a prominent plan/usage display is a Phase 5 item.
+
+**Account state:** the Razorpay account's website was **approved** and live mode is available. Development is still in **Test Mode** (see constraints). The user's test account is currently on the Student plan in Neon.
 
 ## 3. Key files, routes, modules
 
-- **Python:**
-  - `app.py`: main app and routes.
-  - `models.py`: `User`, `UploadedFile`, `UsageEvent`.
-  - `extensions.py`: `db`, `csrf`, `limiter`. This avoids circular imports.
-  - `plans.py`, `usage.py`, `tokens.py` (`generate_token`/`confirm_token`), `mailer.py` (`send_email`, `send_verification_email`, `send_reset_email`).
-  - `utils.py` and `outlier_engine.py`: cleaning engines (9 engines).
-  - `create_tables.py`, `test_usage.py` (temporary, can be deleted).
-- **Routes:** `/` (function `home`), `/upload`, `/clean` (POST), `/download` (POST), `/download/excel`, `/download/csv`, `/report`, `/delete-file` (POST), `/signup`, `/login`, `/logout` (POST), `/verify/<token>`, `/resend-verification`, `/forgot-password`, `/reset-password/<token>`. Error handlers: 413, CSRFError, 429.
-- **Templates:** `index.html`, `tool.html`, `result.html`, `_nav.html` (fixed 48px top bar plus unverified banner), `auth_base.html`, `login.html`, `signup.html`, `forgot_password.html`, `reset_password.html`, `limit_reached.html`.
-- **Env vars (names only; never paste values into chat or git):** `SECRET_KEY`, `DATABASE_URL`, Brevo API key and sender, `APP_BASE_URL` (Render URL on Render, localhost in `.env`).
-- **Docs sent earlier:** `CleanSight_v1_Audit_Record.md`, `CleanSight_v2_Production_Checklist.md`, `CleanSight_Master_Production_Checklist.md`, `cleansight_sample_test.csv`.
+- **Python:** `app.py` (routes), `models.py` (`User` with `plan_tier` and `razorpay_subscription_id`, `UploadedFile`, `UsageEvent`, `WebhookEvent`), `extensions.py` (`db`, `csrf`, `limiter`), `plans.py`, `usage.py`, `billing.py`, `tokens.py`, `mailer.py`, `utils.py` and `outlier_engine.py` (9 cleaning engines), `create_tables.py` (one-off `db.create_all()`), `test_usage.py` and `check_razorpay.py` (temporary helpers, safe but can be deleted or ignored).
+- **Routes:** `/`, `/upload`, `/clean` (POST), `/download` (POST), `/download/excel`, `/download/csv`, `/report`, `/delete-file` (POST), `/signup`, `/login`, `/logout` (POST), `/verify/<token>`, `/resend-verification`, `/forgot-password`, `/reset-password/<token>`, `/subscribe` (POST), `/razorpay/webhook` (POST).
+- **Templates:** `index.html`, `tool.html`, `result.html`, `_nav.html`, `auth_base.html`, `login.html`, `signup.html`, `forgot_password.html`, `reset_password.html`, `limit_reached.html`.
+- **Env var names (never paste values):** `SECRET_KEY`, `DATABASE_URL`, Brevo key/sender, `APP_BASE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_PLAN_STUDENT`, `RAZORPAY_WEBHOOK_SECRET`.
+- **Neon tables:** `users`, `uploaded_files`, `usage_events`, `webhook_events`.
 
 ## 4. Bugs
 
-**Fixed [CONFIRMED]:**
-- Nav overlapping page buttons: now a full-width fixed bar with body padding.
-- `/clean` 405: the form is now POST and the route reads `request.form`.
-- `ImportError: send_email`: `mailer.py` was empty or unsaved.
-- `url_for` not imported.
-- `BuildError`: the endpoint is `home`, not `index`; the code uses `redirect("/")`.
-- SQLAlchemy DLL block (Windows Application Control blocked 2.1's `_row_cy`): pinned `sqlalchemy<2.1`.
-- Duplicate signup flash message.
-- Unverified users could use the app: fixed with `verified_required`.
-- Auto-expiry never ran: `safe_cleanup()` is now called in `upload()` and `login()`.
+**Fixed [CONFIRMED]:** nav overlap; `/clean` 405 (now POST); mailer ImportError; `url_for` import; BuildError (endpoint is `home`); SQLAlchemy DLL block (pinned `<2.1`); duplicate signup flash; unverified access; auto-expiry never ran; Razorpay **401 "Authentication failed"** was caused by a stale or mismatched key/secret pair. A fresh pair generated once in Test Mode fixed both local and Render. Lesson: after rotating keys, update both `.env` and Render, and compare the Key ID's last 4 characters.
 
-**Open or unresolved:**
-- Possible local-time bug: `UploadedFile.created_at` default may use local `datetime.now` instead of UTC. [VERIFY in `models.py`]
-- `result.html` CSS: an HTML comment inside `<style>` (about line 673, `<!-- EXPORT CARDS ... -->`) should be `/* EXPORT CARDS */`, and `var(--card)` should be `var(--bg-card)`.
-- `index.html`: the "5 Cleaning Engines" text should say 9, and the footer has a duplicate "Fast".
-- Confirm `format="mixed"` in `to_datetime_safe` (`utils.py`) and in `outlier_engine.py`.
-- Unresolved checklist items: SC3, M5, C9, C15, C19.
-- `tool.html` flash rendering, favicon 404.
-- Flask-Limiter in-memory storage warning (fine for one worker, needs shared storage if scaling).
-- Keep `FILE_TTL_HOURS` and the UI text in sync (currently 2 hours).
-- Git CRLF warnings: harmless.
+**Fix given, not confirmed applied [INSTRUCTED]:** Neon idle disconnect ("SSL connection has been closed unexpectedly" in `load_user`). The fix is `app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 280}` in `app.py` before `db.init_app(app)`. Check that it exists and is deployed.
 
-## 5. Decisions made
+**Open:**
+- `UploadedFile.created_at` default may be local time, not UTC. [VERIFY in `models.py`]
+- `result.html`: HTML comment inside `<style>` (about line 673) and `var(--card)` should be `var(--bg-card)`.
+- `index.html`: "5 Cleaning Engines" should say 9; duplicate "Fast" in the footer; the `fileInput` script should be wrapped in `if (input)`.
+- UPI never appeared on checkout for subscriptions earlier. The user said UPI opens only on the deployed site, and whether UPI AutoPay works there is **not confirmed**. Revisit in 2G.
+- Confirm `format="mixed"` in `to_datetime_safe` and `outlier_engine.py`. Unresolved checklist items SC3, M5, C9, C15, C19. `tool.html` flash rendering, favicon 404, limiter in-memory storage, `FILE_TTL_HOURS` vs UI text (currently 2).
 
-- Follow the user's own Master Specification phase order (I once wrongly called Phase 2 "flags"; Phase 2 is Payments).
-- Student price ₹199 (suggested). Proposed: 7-day refund, no trial, Pro hidden until AI features exist.
-- Cloudflare R2 per-user storage is deferred to the end of the project.
-- Google sign-in is an optional later add-on, not a replacement for Brevo.
-- Gating is server-side only; plan changes come only from Razorpay webhooks.
-- Usage is counted per unique file cleaned per user per UTC month. Re-cleaning the same file doesn't count again.
-- "Shorter expiry after download" needs a `downloaded_at` column (ALTER TABLE). Deferred.
-- `db.create_all()` only creates new tables. Changes to existing tables need ALTER TABLE or migrations.
+## 5. Decisions
+
+- Follow the user's Master Specification phase order (Phase 4 = row/cell flagging, Phase 5 = UI/UX overhaul).
+- Plan changes come **only** from the webhook; gating is server-side only.
+- Razorpay is the provider, used via REST. Provider can be swapped by rewriting `billing.py` and the webhook.
+- Student ₹199. Pro stays hidden until the AI features exist.
+- **Pending (asked, not answered):** (1) on cancel, keep access until the end of the paid month (my recommendation; the webhook currently downgrades immediately); (2) refund policy. I suggested 7 days, but the user asked whether it's mandatory. My answer: no specific period is mandated that I know of, but a clearly stated refund and cancellation policy is required (Razorpay expects the page, and Indian e-commerce rules require disclosure). "No refunds, cancel any time" is allowed if stated clearly. I am not a lawyer, so verify with Razorpay's requirements and Indian consumer law.
+- R2 storage last. Google sign-in later.
 
 ## 6. Status
 
-- **Deployed:** Phase 1 is live on Render and tested by the user. [CONFIRMED]
-- **Phase 2C:** code and templates were handed over. I don't know which edits the user applied, whether they tested, or whether anything was committed or pushed. [VERIFY]
-- **Last commit I know of:** Phase 1 sign-off ("done and commit perfectly and dusted"). Nothing else is confirmed.
-- **Not started:** Razorpay (2D–2G), Phases 3–7, pre-launch QA.
+- **Deployed on Render:** through Phase 2E, I believe. [VERIFY that the latest push includes the Neon idle fix]
+- **Last commit I saw:** `7cb2c58 Phase 2B`. After that the user reported committing 2C and later changes. Hashes and messages are unknown. [VERIFY with `git log --oneline -5`]
+- **Not started:** 2F billing page, 2G go-live, Phases 3–7, pre-launch QA.
 
 ## 7. Next steps, in priority order
 
-1. Confirm which 2C edits are applied in `app.py`, `result.html`, `index.html`, `limit_reached.html`. Paste the files if unsure.
-2. Run the 2C tests:
-   - Temporarily set free `files_per_month=1`. The second new file should be blocked, and re-cleaning the first should still work.
-   - A free user's Excel and PDF should be blocked (403 limit page), with CSV still allowed.
-   - Upload a file over 5 MB (for example 6 MB) as a free user. It should be blocked.
-   - Set `plan_tier='student'` in Neon. Excel and PDF should work and a 6 MB file should be accepted.
-   - Check `usage_events` rows in Neon.
-   - Restore `files_per_month` to 3.
-3. Commit: "Phase 2C: server-side plan gating", then deploy and smoke-test on Render.
-4. **2D:** Razorpay test mode (account, test keys, ₹199 Student subscription, upgrade button, UPI AutoPay).
-5. **2E:** webhook handler for `subscription.activated`, `.charged`, `.cancelled` and `payment.failed`, with signature verification. Update `plan_tier` only from webhooks, and log events.
-6. **2F:** billing page.
-7. **2G:** KYC, live keys, policy pages (terms, privacy, refund).
-8. **Phase 3:** gunicorn workers, background queue, file/row caps, structured logging, Sentry, UptimeRobot, Flask-Talisman, cleanup job, shared limiter storage.
-9. **Phase 4:** issue/flag data model. Shared record `{row, column, category, severity (red/orange), message, suggested_fix}`, detect → review → apply flow, Excel cell comments, an "Issues" column, sort/filter by error type, per-column suggested fixes, two-colour marking of only the problem cell, and the 10-category problem list.
-10. **Phases 5–7:** UI/UX overhaul, then AI profile-summary via the Claude API, then retention features (history, presets, diff view, API, teams, audit logs, scheduled jobs, Sheets export, reports). The cleaning-log export for the Student plan also belongs here.
-11. Pre-launch QA checklist. Cloudflare R2 comes last.
+1. Confirm `git status` is clean and pushed, and the Neon idle fix is in.
+2. **2F billing page:** `/billing` showing plan, price, status and renewal date; a Cancel button (Razorpay cancel-at-cycle-end); keep paid access until the period ends (needs a `plan_renews_at` column via `ALTER TABLE users ADD COLUMN ...` in Neon, and a webhook change so `.cancelled` doesn't downgrade immediately); a Billing nav link; a confirmation after checkout.
+3. **2G go-live:** terms, privacy and refund/cancellation pages; live key pair, live plan and live webhook (own secret), all set **only in Render**, never in local `.env`; UPI AutoPay check; a small live payment test.
+4. **Phase 3** infra: gunicorn workers, background queue, file/row caps, structured logging, Sentry, UptimeRobot, Flask-Talisman, cleanup job, shared limiter storage.
+5. **Phase 4** flagging model: issue records `{row, column, category, severity, message, suggested_fix}`, sort/filter by error type, per-column suggestions, two-colour cell marking, an Issues column, the 10-category problem list.
+6. **Phase 5** UI/UX overhaul, including prominent plan and usage display.
+7. **Phase 6** AI profile summary via the Claude API. **Phase 7** retention features. Pre-launch QA. R2 last.
 
 ## 8. Instructions for the next AI assistant
 
-- The user is a beginner. Go one small step at a time, explain each change, and give exact find/replace snippets with line context.
-- Use Windows/PowerShell commands.
-- Follow the user's spec phases. Don't reorder them.
-- Never ask for or echo secrets (`.env`, API keys, DB URLs). Keep them out of git and chat.
-- Security-first defaults: CSRF, ownership checks, server-side gating, and no trusting the client for plan or usage.
-- After each step, ask the user to run specific tests and report pass or fail before moving on.
-- Don't claim something is applied or working unless the user confirmed it. Ask them to paste the current file if unsure.
-- Teach RAG/LLM concepts when the AI phase starts.
-- Keep Brevo costs and free-tier limits in mind, because the user has no budget.
-- Commit messages should be per-phase, for example "Phase 2C: ...".
+- The user is a beginner. One small step at a time, exact find/replace snippets, PowerShell commands.
+- Follow the user's spec phases and don't reorder them.
+- Never ask for or echo secrets. A Razorpay Key ID is public, but the Key Secret, webhook secret, DB URL and Brevo key are not.
+- **Stay in Razorpay Test Mode** until 2G. Live keys charge real money. Test cards: Mastercard `5267 3181 8797 5449`, Visa `4718 6091 0820 4366`, any future expiry, any CVV, OTP `1234`. UPI test: `success@razorpay`.
+- Don't claim something works unless the user confirmed it. Ask for the real files when unsure.
+- Security first: CSRF, ownership checks, server-side gating, webhook signature verification.
+- Per-phase commit messages.
+- Keep costs low: the user has no budget, and Brevo's free tier is 300 emails/day.
 
-## 9. What I can't reliably recover
+## 9. What I can't recover reliably
 
-- Exact current contents of the user's local files (`app.py`, `models.py`, `utils.py`, templates). Ask the user to paste them before editing.
-- Whether 2C edits were applied, tested or committed, and any test results after the 2B `test_usage.py` run.
-- The full wording of the user's Master Specification and checklists. Ask the user to re-attach the spec file.
-- Exact text of SC3, M5, C9, C15, C19 (they are in `CleanSight_Master_Production_Checklist.md`).
-- The `UploadedFile` column definitions and the `created_at` UTC question.
-- The Render environment variable values, and which Brevo sender is verified.
-- Full earlier conversation: `/root/.claude/projects/-home-claude/46a00415-0931-5206-9f94-fe25dfc1f280.jsonl` (cloud workspace, may be unavailable later).
+- Current contents of the user's local files. Ask for `app.py`, `models.py`, `billing.py`, `plans.py` and the templates before editing.
+- Which exact edits and commits exist, and the individual 2C test results.
+- The full Master Specification and checklist wording (re-attach the spec file).
+- Whether the Neon idle fix is deployed, and whether UPI works for subscriptions on the live site.
+- The earlier transcript: `/root/.claude/projects/-home-claude/46a00415-0931-5206-9f94-fe25dfc1f280.jsonl` (cloud workspace, may be gone).
