@@ -1,0 +1,23 @@
+{% extends "auth_base.html" %}
+{% block title %}Checkout · CleanSight{% endblock %}
+{% block content %}
+  <p class="cs-sub">Opening the secure payment window…</p>
+  <button id="pay-btn" type="button">Open payment window</button>
+  <p class="switch"><a href="/billing">Cancel</a></p>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    var options = {
+      key: {{ key_id|tojson }},
+      subscription_id: {{ subscription_id|tojson }},
+      name: "CleanSight",
+      description: "Student plan · ₹199/month",
+      prefill: { email: {{ email|tojson }} },
+      handler: function () { window.location.href = "/billing/processing"; },
+      modal: { ondismiss: function () { window.location.href = "/billing"; } }
+    };
+    var rzp = new Razorpay(options);
+    document.getElementById("pay-btn").onclick = function () { rzp.open(); };
+    rzp.open();
+  </script>
+{% endblock %}

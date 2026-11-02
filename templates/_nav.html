@@ -25,6 +25,7 @@
   {% if current_user.is_authenticated %}
     <span class="cs-nav-user">{{ current_user.email }}</span>
     <a href="/" class="cs-nav-btn">New file</a>
+    <a href="/billing" class="cs-nav-btn">Billing</a>
     <form method="POST" action="/logout" style="margin:0;">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <button type="submit" class="cs-nav-btn" style="cursor:pointer; font-family:inherit; font-size:inherit;">Log out</button>

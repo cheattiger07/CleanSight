@@ -1,5 +1,6 @@
 import time
 from functools import wraps
+from flask import jsonify
 from flask import Flask,redirect, render_template, request, send_file,flash,url_for,session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from utils import (
@@ -17,7 +18,7 @@ from exports.report import generate_pdf_report
 from exports.excel_report import generate_excel_report
 import csv 
 import openpyxl
-from billing import create_subscription, BillingError
+from billing import create_subscription, cancel_subscription, BillingError
 from engines.profiling_engine import profiling_engine
 from engines.missing_engine import missing_engine
 from engines.outlier_engine import outlier_engine
@@ -691,8 +692,13 @@ def subscribe():
     except BillingError as e:
         flash(str(e), "warning")
         return redirect("/")
-    app.logger.info("Subscription %s created for user %s", sub_id, current_user.id)
-    return redirect(checkout_url)
+        app.logger.info("Subscription %s created for user %s", sub_id, current_user.id)
+    return render_template(
+        "checkout.html",
+        key_id=os.environ.get("RAZORPAY_KEY_ID", ""),
+        subscription_id=sub_id,
+        email=current_user.email,
+    )
 
 
 
@@ -767,6 +773,54 @@ def razorpay_webhook():
     db.session.commit()
     app.logger.info("Razorpay event %s handled (user=%s)", event, user_id)
     return "ok", 200
+
+
+@app.route("/billing")
+@login_required
+def billing():
+    plan = plan_for_user(current_user)
+    return render_template(
+        "billing.html",
+        plan=plan,
+        renews_at=current_user.plan_renews_at,
+        cancelling=current_user.cancel_requested,
+        is_paid=plan["name"] != "Free",
+    )
+
+
+@app.route("/billing/cancel", methods=["POST"])
+@login_required
+@verified_required
+@limiter.limit("5 per hour")
+def billing_cancel():
+    plan = plan_for_user(current_user)
+    if plan["name"] == "Free" or not current_user.razorpay_subscription_id:
+        flash("You don't have an active subscription.", "warning")
+        return redirect("/billing")
+    if current_user.cancel_requested:
+        flash("Your subscription is already set to end.", "warning")
+        return redirect("/billing")
+    try:
+        cancel_subscription(current_user.razorpay_subscription_id)
+    except BillingError as e:
+        flash(str(e), "warning")
+        return redirect("/billing")
+    current_user.cancel_requested = True
+    db.session.commit()
+    end = current_user.plan_renews_at.strftime("%d %b %Y") if current_user.plan_renews_at else "the end of your billing period"
+    flash(f"Your subscription won't renew. You keep Student access until {end}.", "success")
+    return redirect("/billing")
+
+@app.route("/billing/processing")
+@login_required
+def billing_processing():
+    return render_template("processing.html")
+
+
+@app.route("/billing/status")
+@login_required
+def billing_status():
+    return jsonify({"paid": plan_for_user(current_user)["name"] != "Free"})
 
 
 

@@ -1,0 +1,27 @@
+{% extends "auth_base.html" %}
+{% block title %}Billing · CleanSight{% endblock %}
+{% block content %}
+  <p class="cs-sub">Current plan: <strong>{{ plan.name }}</strong>
+    {% if plan.price_inr %}· ₹{{ plan.price_inr }}/month{% endif %}</p>
+
+  {% if is_paid %}
+    {% if cancelling %}
+      <p class="hint">Your subscription is cancelled and won't renew. You keep access until
+        {{ renews_at.strftime("%d %b %Y") if renews_at else "the end of your billing period" }}.</p>
+    {% else %}
+      <p class="hint">Renews on {{ renews_at.strftime("%d %b %Y") if renews_at else "your next billing date" }}.</p>
+      <form method="POST" action="/billing/cancel"
+            onsubmit="return confirm('Cancel your subscription? You keep access until the end of the paid period.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Cancel subscription</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <form method="POST" action="/subscribe">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">Upgrade to Student: ₹199/month</button>
+    </form>
+  {% endif %}
+
+  <p class="switch"><a href="/">Back to the cleaner</a></p>
+{% endblock %}
