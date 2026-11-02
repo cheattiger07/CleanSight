@@ -55,3 +55,17 @@ def create_subscription(user, plan_env="RAZORPAY_PLAN_STUDENT"):
 
     data = resp.json()
     return data["id"], data["short_url"]
+
+def cancel_subscription(subscription_id):
+    """Cancel at the end of the current paid period."""
+    try:
+        resp = requests.post(
+            f"{RAZORPAY_API}/subscriptions/{subscription_id}/cancel",
+            json={"cancel_at_cycle_end": 1},
+            auth=_auth(),
+            timeout=15,
+        )
+    except requests.RequestException:
+        raise BillingError("Could not reach the payment provider. Try again.")
+    if resp.status_code != 200:
+        raise BillingError("Could not cancel the subscription. Please try again or contact support.")

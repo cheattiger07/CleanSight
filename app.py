@@ -683,7 +683,7 @@ def forgot_password():
 @verified_required
 @limiter.limit("5 per hour")
 def subscribe():
-    if current_user.plan_tier != "free":
+    if plan_for_user(current_user)["name"] != "Free":
         flash("You're already on a paid plan.", "success")
         return redirect("/")
     try:
@@ -746,10 +746,21 @@ def razorpay_webhook():
     user = db.session.get(User, int(user_id)) if user_id else None
 
     if user:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         if event in ("subscription.activated", "subscription.charged"):
             user.plan_tier = "student"
             user.razorpay_subscription_id = sub.get("id")
-        elif event in ("subscription.cancelled", "subscription.halted", "subscription.completed"):
+            user.cancel_requested = False
+            end = sub.get("current_end")
+            user.plan_renews_at = (
+                datetime.fromtimestamp(end, timezone.utc).replace(tzinfo=None) if end else None
+            )
+        elif event == "subscription.cancelled":
+            if user.plan_renews_at and user.plan_renews_at > now:
+                user.cancel_requested = True       # keep access until the paid period ends
+            else:
+                user.plan_tier = "free"
+        elif event in ("subscription.halted", "subscription.completed"):
             user.plan_tier = "free"
 
     db.session.add(WebhookEvent(event_id=event_id or f"noid-{time.time()}", event_type=event))

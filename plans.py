@@ -1,3 +1,4 @@
+from datetime import datetime,timezone
 PLANS = {
     "free": {
         "name": "Free",
@@ -34,5 +35,13 @@ def get_plan(tier):
     return PLANS.get(tier, PLANS["free"])
 
 
+def effective_tier(user):
+    """A cancelled plan stays active until the paid period ends, then drops to free."""
+    if user.plan_tier != "free" and user.cancel_requested and user.plan_renews_at:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        if user.plan_renews_at < now:
+            return "free"
+    return user.plan_tier
+
 def plan_for_user(user):
-    return get_plan(user.plan_tier)
+    return get_plan(effective_tier(user))

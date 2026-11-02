@@ -16,6 +16,8 @@ class User(db.Model, UserMixin):
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     razorpay_subscription_id = db.Column(db.String(64), nullable=True)
+    plan_renews_at = db.Column(db.DateTime, nullable=True)
+    cancel_requested = db.Column(db.Boolean, nullable=False, default=False)
 
     def set_password(self, raw_password):
         self.password_hash = generate_password_hash(raw_password)
