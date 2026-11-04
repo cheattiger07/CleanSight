@@ -163,6 +163,35 @@ LIMIT_MESSAGES = {
 }
 
 
+MAX_ROWS = 50_000
+MAX_COLS = 100
+
+
+def dataset_too_big(file_path, ext):
+    """Cheap size check BEFORE loading the file into pandas.
+    Returns an error message if the file is over the caps, else None."""
+    try:
+        if ext == "csv":
+            with open(file_path, "rb") as f:
+                rows = sum(1 for _ in f) - 1          # minus the header line
+            with open(file_path, "r", encoding="latin1", newline="") as f:
+                cols = len(next(csv.reader(f), []))
+        else:
+            wb = openpyxl.load_workbook(file_path, read_only=True)
+            ws = wb.worksheets[0]
+            rows = (ws.max_row or 1) - 1
+            cols = ws.max_column or 0
+            wb.close()
+    except Exception:
+        return None     # can't tell here; the normal read below will report any real problem
+
+    if rows > MAX_ROWS:
+        return f"This file has {rows:,} rows. The limit is {MAX_ROWS:,} rows per file."
+    if cols > MAX_COLS:
+        return f"This file has {cols:,} columns. The limit is {MAX_COLS:,} columns per file."
+    return None
+
+
 def limit_response(reason):
     plan = plan_for_user(current_user)
     message = LIMIT_MESSAGES[reason].format(
@@ -220,6 +249,13 @@ def upload():
         if os.path.getsize(file_path) > plan["max_file_mb"] * 1024 * 1024:
             os.remove(file_path)
             return limit_response("size")
+
+        problem = dataset_too_big(file_path, ext)
+        if problem:
+            os.remove(file_path)
+            flash(problem, "danger")
+            return redirect("/")
+        
         new_file_record = UploadedFile(
             user_id=current_user.id,
             stored_filename=stored_filename,

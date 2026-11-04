@@ -1,102 +1,104 @@
-# CleanSight Handoff (handoff.md), updated 2026-10-21
+# CleanSight Handoff (handoff.md), updated 2026-11-02 (end of day)
 
-Markers: **[CONFIRMED]** = the user reported it working or I saw the file contents. **[REPORTED]** = the user said it was done, with no detail. **[INSTRUCTED]** = I gave instructions but the user hasn't confirmed. **[VERIFY]** = unknown, check the real files.
+Markers: **[CONFIRMED]** = the user reported it working, or I saw the output. **[REPORTED]** = the user said it was done, with no detail. **[INSTRUCTED]** = I gave instructions but the user hasn't confirmed. **[VERIFY]** = unknown, check the real files.
 
-This replaces the 2026-10-16 handoff. Phase 2C, 2D and 2E progress is new.
+This replaces all earlier handoffs. Phase 2 (payments) is now functionally complete in Test Mode. Phase 3 starts next.
 
 ---
 
 ## 1. Project overview
 
-- **Purpose:** CleanSight is a data-cleaning web app. Users upload CSV/XLSX, run cleaning engines, then download results (CSV, highlighted Excel, PDF quality report).
+- **Purpose:** CleanSight is a data-cleaning web app. Users upload CSV/XLSX, run 9 cleaning engines, then download results (CSV, highlighted Excel, PDF quality report).
 - **Version:** building **v2** from a working v1.
-- **Goal:** a production SaaS. Student plan ₹199/month now, Pro ₹999/month later.
+- **Goal:** a production SaaS. Student plan ₹199/month now, Pro ₹999/month later (hidden until AI features exist).
 - **Audience now:** college students and researchers (datasets of about 600–700 rows). AI bot and analytics come later for professional clients.
-- **User:** beginner, Windows/PowerShell, VS Code. Path: `C:\Users\praav\OneDrive\Documents\My Projects\CleanSight`.
+- **User:** beginner, Windows/PowerShell, VS Code. **New laptop since 2026-11-02:** path `C:\Users\praav\Documents\Projects\CleanSight`, venv `.venv`. Old path (`...\OneDrive\Documents\My Projects\CleanSight`, `venv`) is obsolete. Git identity was set on the new laptop with `git config --global user.name/user.email` (the user's GitHub account).
 - **Live URL:** https://cleansight-zajg.onrender.com
-- **Stack:**
-  - Flask 3.1.3, Pandas 3.0.2, OpenPyXL, Python 3.14, gunicorn (`Procfile`: `web: gunicorn app:app`), Jinja HTML/CSS/JS.
-  - Neon Postgres (`postgresql+psycopg://`), shared by local `.env` and Render.
-  - Render free tier. Brevo email (HTTP API). Razorpay payments (REST via `requests`, not the `razorpay` package).
+- **Stack:** Flask 3.1.3, Pandas 3.0.2, OpenPyXL, Python 3.14, gunicorn (`Procfile`: `web: gunicorn app:app`), Jinja HTML/CSS/JS. Neon Postgres (`postgresql+psycopg://`), shared by local `.env` and Render. Render free tier. Brevo email (HTTP API). Razorpay (REST via `requests`).
 - **Dependencies:** Flask-SQLAlchemy 3.1.1 with `sqlalchemy<2.1` pinned, Flask-Login 0.6.3, Flask-WTF 1.2.2 (CSRF), Flask-Limiter (in-memory), `psycopg[binary]==3.2.10`, `requests`, `python-dotenv`, `itsdangerous`.
 
 ## 2. Features completed
 
-**Phase 1 Auth [CONFIRMED, live]:** signup, login, POST-only logout, email verification (signed single-use tokens), password reset, CSRF, ownership checks, secure cookies, rate limiting, fail-safe `SECRET_KEY`, formula-injection sanitising, UUID filenames. Files expire after `FILE_TTL_HOURS = 2` through lazy cleanup (`safe_cleanup()` in `upload()` and `login()`), plus a "delete my file now" button. Cloudflare R2 storage is deferred to the very end of the project.
+**Phase 1 Auth [CONFIRMED, live]:** signup, login, POST-only logout, email verification and password reset (signed single-use tokens, separate salts), CSRF, ownership checks, secure cookies, rate limiting, fail-safe `SECRET_KEY`, formula-injection sanitising, UUID filenames. Files expire after `FILE_TTL_HOURS = 2` through lazy cleanup (`safe_cleanup()` in `upload()` and `login()`), plus a "delete my file now" button. **Cloudflare R2 per-user storage is deferred to the very end of the project** (see section 5).
 
-**Phase 2B usage tracking [CONFIRMED]:** `plans.py` (free: 3 files/month, 5 MB, no Excel/PDF; student ₹199: 30 files, 16 MB, Excel + PDF + cleaning log; pro ₹999: 200 files, 16 MB, all). `usage_events` table (unique per user per file), `usage.py` with `files_used_this_month`, `has_counted`, `record_file_usage`.
-
-**Phase 2C server-side gating [REPORTED]:** the user said "done commited" after the test list. Individual test results were not reported. Includes `limit_response()`, `inject_plan` context processor, upload/clean/Excel/PDF checks and `limit_reached.html`. The Upgrade button on that page POSTs to `/subscribe`.
-
-**Phase 2D Razorpay checkout [CONFIRMED, local and Render]:** `billing.py` has `create_subscription(user)`, which calls `POST https://api.razorpay.com/v1/subscriptions` with plan `RAZORPAY_PLAN_STUDENT`, `total_count 60`, and `notes {user_id, email}`, and returns the hosted checkout `short_url`. `/subscribe` (POST, login + verified required, 5 per hour) redirects there. Errors are logged by `billing.py` (it currently logs safe diagnostics: key prefix, length, last 4 characters of the Key ID, whitespace flags, never the secret).
-
-**Phase 2E webhook [CONFIRMED by the user's checks, "all okay"]:** `POST /razorpay/webhook` is CSRF-exempt and limiter-exempt, and checks an HMAC-SHA256 signature using `RAZORPAY_WEBHOOK_SECRET` (a value the user invented, entered in both Render and the Razorpay webhook form). It skips duplicates through the `webhook_events` table (`event_id` unique). `subscription.activated` and `.charged` set `plan_tier="student"` and store `razorpay_subscription_id`. `.cancelled`, `.halted` and `.completed` set it to `"free"` immediately (a known simplification, to be improved in 2F). The user paid with a test card on the live site, and the plan upgraded.
-
-**Home page plan line [CONFIRMED]:** shows "<Plan> plan · X of Y files used this month". The user finds it easy to miss, so a prominent plan/usage display is a Phase 5 item.
-
-**Account state:** the Razorpay account's website was **approved** and live mode is available. Development is still in **Test Mode** (see constraints). The user's test account is currently on the Student plan in Neon.
+**Phase 2 Payments and usage limits [CONFIRMED, Test Mode]:**
+- `plans.py`: free (3 files/month, 5 MB, no Excel/PDF), student ₹199 (30 files, 16 MB, Excel + PDF + cleaning log flag), pro ₹999 (200 files, 16 MB). `effective_tier(user)` drops a cancelled plan to free once `plan_renews_at` has passed. `plan_for_user(user)` uses it.
+- `usage_events` table and `usage.py` count unique files cleaned per user per UTC month.
+- Server-side gating (2C): file count, file size, Excel and PDF; `limit_reached.html`. The user ran the test list and committed.
+- Razorpay checkout (2D/2F): `billing.py` has `create_subscription(user)` (REST `POST /v1/subscriptions`, plan `RAZORPAY_PLAN_STUDENT`, `total_count 60`, notes carry `user_id`) and `cancel_subscription(sub_id)` (cancel at cycle end). `/subscribe` (POST, verified required, 5 per hour) renders `checkout.html`, which opens Razorpay's checkout window on our own page (`checkout.js`); success goes to `/billing/processing` (`processing.html`, polls `/billing/status` until the webhook has upgraded the plan, then goes to `/billing`).
+- Webhook (2E): `POST /razorpay/webhook`, CSRF-exempt, signature-checked with `RAZORPAY_WEBHOOK_SECRET`, duplicates skipped through `webhook_events`. `subscription.activated`/`.charged` set `plan_tier="student"`, store the subscription id and `plan_renews_at` (from `current_end`, falling back to `charge_at`), and clear `cancel_requested`. `.cancelled` keeps access until `plan_renews_at` (sets `cancel_requested`), `.halted`/`.completed` set free.
+- Billing page (2F): `/billing` shows plan, renewal date, and a Cancel button (`POST /billing/cancel`, 5 per hour). A Billing link is in `_nav.html`.
+- **Verified by the user on the live site:** payment with test card AND UPI AutoPay (mandate created, next charge scheduled), redirect after payment, plan upgrade, `plan_renews_at` stored (UTC, naive), Excel/PDF unlocked, cancel flow, nav link styling. Both Render and localhost work (they share one Neon DB, and Razorpay's webhook goes to Render).
+- **Account state:** the Razorpay account's website was **approved**, and live mode is available. Development stays in **Test Mode**.
 
 ## 3. Key files, routes, modules
 
-- **Python:** `app.py` (routes), `models.py` (`User` with `plan_tier` and `razorpay_subscription_id`, `UploadedFile`, `UsageEvent`, `WebhookEvent`), `extensions.py` (`db`, `csrf`, `limiter`), `plans.py`, `usage.py`, `billing.py`, `tokens.py`, `mailer.py`, `utils.py` and `outlier_engine.py` (9 cleaning engines), `create_tables.py` (one-off `db.create_all()`), `test_usage.py` and `check_razorpay.py` (temporary helpers, safe but can be deleted or ignored).
-- **Routes:** `/`, `/upload`, `/clean` (POST), `/download` (POST), `/download/excel`, `/download/csv`, `/report`, `/delete-file` (POST), `/signup`, `/login`, `/logout` (POST), `/verify/<token>`, `/resend-verification`, `/forgot-password`, `/reset-password/<token>`, `/subscribe` (POST), `/razorpay/webhook` (POST).
-- **Templates:** `index.html`, `tool.html`, `result.html`, `_nav.html`, `auth_base.html`, `login.html`, `signup.html`, `forgot_password.html`, `reset_password.html`, `limit_reached.html`.
-- **Env var names (never paste values):** `SECRET_KEY`, `DATABASE_URL`, Brevo key/sender, `APP_BASE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_PLAN_STUDENT`, `RAZORPAY_WEBHOOK_SECRET`.
+- **Python:** `app.py` (routes), `models.py` (`User` with `plan_tier`, `razorpay_subscription_id`, `plan_renews_at`, `cancel_requested`; `UploadedFile`; `UsageEvent`; `WebhookEvent`), `extensions.py` (`db`, `csrf`, `limiter`), `plans.py`, `usage.py`, `billing.py`, `tokens.py`, `mailer.py`, `utils.py` and `outlier_engine.py` (cleaning engines), `create_tables.py` (one-off `db.create_all()`), `test_usage.py` and `check_razorpay.py` (temporary helpers, can be deleted).
+- **Routes:** `/`, `/upload`, `/clean` (POST), `/download` (POST), `/download/excel`, `/download/csv`, `/report`, `/delete-file` (POST), `/signup`, `/login`, `/logout` (POST), `/verify/<token>`, `/resend-verification`, `/forgot-password`, `/reset-password/<token>`, `/subscribe` (POST), `/billing`, `/billing/cancel` (POST), `/billing/processing`, `/billing/status`, `/razorpay/webhook` (POST).
+- **Templates:** `index.html`, `tool.html`, `result.html`, `_nav.html`, `auth_base.html`, `login.html`, `signup.html`, `forgot_password.html`, `reset_password.html`, `limit_reached.html`, `billing.html`, `checkout.html`, `processing.html`.
+- **Env var names (never paste values):** `SECRET_KEY`, `DATABASE_URL`, Brevo key/sender, `APP_BASE_URL`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_PLAN_STUDENT`, `RAZORPAY_WEBHOOK_SECRET`. `.env` is not in git; a new machine needs its own copy.
 - **Neon tables:** `users`, `uploaded_files`, `usage_events`, `webhook_events`.
+- **Last commits I know of:** `b2ba017 Phase 2F: renewal date, cancel-aware plan expiry, webhook logging`, then the user reported pushing "Phase 2F: in-site checkout and redirect" and "Phase 2F: billing page, cancel, in-site checkout". [VERIFY with `git log --oneline -5`]
 
 ## 4. Bugs
 
-**Fixed [CONFIRMED]:** nav overlap; `/clean` 405 (now POST); mailer ImportError; `url_for` import; BuildError (endpoint is `home`); SQLAlchemy DLL block (pinned `<2.1`); duplicate signup flash; unverified access; auto-expiry never ran; Razorpay **401 "Authentication failed"** was caused by a stale or mismatched key/secret pair. A fresh pair generated once in Test Mode fixed both local and Render. Lesson: after rotating keys, update both `.env` and Render, and compare the Key ID's last 4 characters.
+**Fixed [CONFIRMED]:** nav overlap; `/clean` 405 (now POST); mailer ImportError; `url_for` import; BuildError (endpoint is `home`); SQLAlchemy DLL block (pinned `<2.1`); duplicate signup flash; unverified access; auto-expiry never ran; the Razorpay **401 "Authentication failed"** was a stale or mismatched key pair on Render. Lesson: after rotating keys, update both `.env` and Render, and compare the Key ID's last 4 characters. A Razorpay test card is declined for subscriptions unless it is recurring-eligible. The 2E duplicate-log line never showed under gunicorn (Flask's `app.logger.info` is hidden at the default WARNING level). The Billing nav link first looked like a plain link, and was fixed by giving it the same class as "New file".
 
-**Fix given, not confirmed applied [INSTRUCTED]:** Neon idle disconnect ("SSL connection has been closed unexpectedly" in `load_user`). The fix is `app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True, "pool_recycle": 280}` in `app.py` before `db.init_app(app)`. Check that it exists and is deployed.
-
-**Open:**
+**Open or unconfirmed:**
+- Neon idle disconnect fix (`SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 280}` before `db.init_app(app)`). I gave it, and the user never said it was applied. [VERIFY in `app.py`]
 - `UploadedFile.created_at` default may be local time, not UTC. [VERIFY in `models.py`]
-- `result.html`: HTML comment inside `<style>` (about line 673) and `var(--card)` should be `var(--bg-card)`.
+- `result.html`: an HTML comment inside `<style>` (about line 673) and `var(--card)` should be `var(--bg-card)`.
 - `index.html`: "5 Cleaning Engines" should say 9; duplicate "Fast" in the footer; the `fileInput` script should be wrapped in `if (input)`.
-- UPI never appeared on checkout for subscriptions earlier. The user said UPI opens only on the deployed site, and whether UPI AutoPay works there is **not confirmed**. Revisit in 2G.
+- Debug logging added to `billing.py` (key prefix, lengths, last 4 characters of the Key ID; no secrets) can be trimmed.
 - Confirm `format="mixed"` in `to_datetime_safe` and `outlier_engine.py`. Unresolved checklist items SC3, M5, C9, C15, C19. `tool.html` flash rendering, favicon 404, limiter in-memory storage, `FILE_TTL_HOURS` vs UI text (currently 2).
 
 ## 5. Decisions
 
-- Follow the user's Master Specification phase order (Phase 4 = row/cell flagging, Phase 5 = UI/UX overhaul).
-- Plan changes come **only** from the webhook; gating is server-side only.
-- Razorpay is the provider, used via REST. Provider can be swapped by rewriting `billing.py` and the webhook.
-- Student ₹199. Pro stays hidden until the AI features exist.
-- **Pending (asked, not answered):** (1) on cancel, keep access until the end of the paid month (my recommendation; the webhook currently downgrades immediately); (2) refund policy. I suggested 7 days, but the user asked whether it's mandatory. My answer: no specific period is mandated that I know of, but a clearly stated refund and cancellation policy is required (Razorpay expects the page, and Indian e-commerce rules require disclosure). "No refunds, cancel any time" is allowed if stated clearly. I am not a lawyer, so verify with Razorpay's requirements and Indian consumer law.
-- R2 storage last. Google sign-in later.
+- Follow the user's Master Specification phase order (Phase 3 infra, Phase 4 row/cell flagging, Phase 5 UI/UX overhaul, Phase 6 AI, Phase 7 retention).
+- Plan changes come **only** from the webhook; gating is server-side only. Razorpay is the provider, used via REST; swapping providers means rewriting `billing.py` and the webhook.
+- Cancelling keeps access until the end of the paid period (chosen by me as default, the user did not object).
+- **2G (go-live) is deferred by the user's choice until after other changes.** Stay in **Test Mode** until then. Needs from the user: business name as registered with Razorpay, a support email to publish (not the college address, since it ends at graduation), location, and a refund choice (7 days / 3 days / no refunds). A refund period is **not legally mandatory**, but a clearly stated refund/cancellation policy is (Razorpay and Indian e-commerce rules). I am not a lawyer. Live switch plan: live keys, live ₹199 plan, live webhook with its own secret, all **only in Render**; one real payment then cancel and refund.
+- **Cloudflare R2 stays last.** It's per-user cloud file storage so files survive restarts and multi-instance setups. Revisit earlier only for lost-file complaints, multiple instances, or the Phase 7 history feature.
+- Making the plan and usage line prominent is a Phase 5 item.
+- Google sign-in later. Pro tier hidden until AI features exist.
 
 ## 6. Status
 
-- **Deployed on Render:** through Phase 2E, I believe. [VERIFY that the latest push includes the Neon idle fix]
-- **Last commit I saw:** `7cb2c58 Phase 2B`. After that the user reported committing 2C and later changes. Hashes and messages are unknown. [VERIFY with `git log --oneline -5`]
-- **Not started:** 2F billing page, 2G go-live, Phases 3–7, pre-launch QA.
+- **Deployed:** Phase 2 through 2F is live on Render in Test Mode. [CONFIRMED by the user's live tests]
+- **Pending in Phase 2:** 2G go-live (deferred); the **cleaning-log export** (`cleaning_log_export` flag exists in `plans.py` but no feature behind it, so Student plan promises it without delivering); failed-payment handling (webhook only records `payment.failed`, nothing tells the user); optional CleanSight payment emails; GST/invoice question for the user and an accountant.
+- **Not started:** Phases 3–7, pre-launch QA.
+- The user's test account is on Student or was reset to Free (unknown). Reset SQL: `UPDATE users SET plan_tier='free', razorpay_subscription_id=NULL, plan_renews_at=NULL, cancel_requested=FALSE WHERE email='<test user>'; DELETE FROM webhook_events;`
 
 ## 7. Next steps, in priority order
 
-1. Confirm `git status` is clean and pushed, and the Neon idle fix is in.
-2. **2F billing page:** `/billing` showing plan, price, status and renewal date; a Cancel button (Razorpay cancel-at-cycle-end); keep paid access until the period ends (needs a `plan_renews_at` column via `ALTER TABLE users ADD COLUMN ...` in Neon, and a webhook change so `.cancelled` doesn't downgrade immediately); a Billing nav link; a confirmation after checkout.
-3. **2G go-live:** terms, privacy and refund/cancellation pages; live key pair, live plan and live webhook (own secret), all set **only in Render**, never in local `.env`; UPI AutoPay check; a small live payment test.
-4. **Phase 3** infra: gunicorn workers, background queue, file/row caps, structured logging, Sentry, UptimeRobot, Flask-Talisman, cleanup job, shared limiter storage.
-5. **Phase 4** flagging model: issue records `{row, column, category, severity, message, suggested_fix}`, sort/filter by error type, per-column suggestions, two-colour cell marking, an Issues column, the 10-category problem list.
-6. **Phase 5** UI/UX overhaul, including prominent plan and usage display.
-7. **Phase 6** AI profile summary via the Claude API. **Phase 7** retention features. Pre-launch QA. R2 last.
+1. **Tomorrow: start Phase 3.** The user will paste `app.py` (at least `upload()` and `clean()`) in a `.md` file. Order I proposed:
+   1. **Row and column caps** server-side (for example 50,000 rows and a column cap), with clear messages.
+   2. **Structured logging and Sentry.**
+   3. **Health endpoint and UptimeRobot.**
+   4. **Flask-Talisman**, with a policy allowing `checkout.razorpay.com` (scripts and frames).
+   5. **Gunicorn workers and shared rate-limit storage.**
+   6. **Background queue and scheduled cleanup job.**
+   7. **Managed Postgres review** (Neon limits and backups).
+2. Confirm or apply the Neon idle fix and the small clean-ups in section 4.
+3. Decide: build the cleaning-log export before Phase 3, or move it to Phase 7.
+4. Phase 4 flagging model: issue records `{row, column, category, severity, message, suggested_fix}`, sort/filter by error type, per-column suggestions, two-colour cell marking, an Issues column, the 10-category problem list.
+5. Phase 5 UI/UX, Phase 6 AI profile summary via the Claude API, Phase 7 retention features.
+6. **2G go-live** (when the user chooses), then pre-launch QA, then R2.
 
 ## 8. Instructions for the next AI assistant
 
-- The user is a beginner. One small step at a time, exact find/replace snippets, PowerShell commands.
+- The user is a beginner. One small step at a time, exact find/replace snippets with context, PowerShell commands.
 - Follow the user's spec phases and don't reorder them.
-- Never ask for or echo secrets. A Razorpay Key ID is public, but the Key Secret, webhook secret, DB URL and Brevo key are not.
-- **Stay in Razorpay Test Mode** until 2G. Live keys charge real money. Test cards: Mastercard `5267 3181 8797 5449`, Visa `4718 6091 0820 4366`, any future expiry, any CVV, OTP `1234`. UPI test: `success@razorpay`.
-- Don't claim something works unless the user confirmed it. Ask for the real files when unsure.
+- Never ask for or echo secrets. A Razorpay Key ID is public, but the Key Secret, webhook secret, DB URL, Brevo key and `.env` contents are not. Tell the user to crop phone numbers and emails out of screenshots.
+- **Stay in Razorpay Test Mode** until 2G. Test cards: Mastercard `5267 3181 8797 5449`, Visa `4718 6091 0820 4366`, any future expiry, any CVV, OTP `1234`. UPI test: `success@razorpay`.
+- Don't claim something works unless the user confirmed it. Ask for the real files when unsure. I can't see the user's computer.
 - Security first: CSRF, ownership checks, server-side gating, webhook signature verification.
-- Per-phase commit messages.
-- Keep costs low: the user has no budget, and Brevo's free tier is 300 emails/day.
+- Per-phase commit messages. The user has no budget: free tiers only.
 
 ## 9. What I can't recover reliably
 
 - Current contents of the user's local files. Ask for `app.py`, `models.py`, `billing.py`, `plans.py` and the templates before editing.
-- Which exact edits and commits exist, and the individual 2C test results.
-- The full Master Specification and checklist wording (re-attach the spec file).
-- Whether the Neon idle fix is deployed, and whether UPI works for subscriptions on the live site.
+- The exact commit hashes after `b2ba017`, and whether `pool_pre_ping` is deployed.
+- The full wording of the user's Master Specification and checklists (re-attach the spec file), and the text of SC3, M5, C9, C15, C19.
+- Whether the user's test account is currently Student or Free.
 - The earlier transcript: `/root/.claude/projects/-home-claude/46a00415-0931-5206-9f94-fe25dfc1f280.jsonl` (cloud workspace, may be gone).
