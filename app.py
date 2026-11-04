@@ -877,10 +877,6 @@ def billing_processing():
 def billing_status():
     return jsonify({"paid": plan_for_user(current_user)["name"] != "Free"})
 
-@app.route("/sentry-test")
-@login_required
-def sentry_test():
-    1 / 0
 
 @app.errorhandler(429)
 def too_many_requests(e):
