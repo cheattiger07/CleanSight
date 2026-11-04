@@ -9,7 +9,7 @@ from utils import (
     sanitize_dataframe_for_excel,
     dedupe_columns,
 )
-import traceback
+import logging,sys
 import hmac,hashlib,json
 from datetime import datetime, timedelta, timezone
 from tokens import generate_token, confirm_token
@@ -42,6 +42,12 @@ app = Flask(__name__)
 from werkzeug.middleware.proxy_fix import ProxyFix
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 IS_PRODUCTION = os.environ.get("RENDER") == "true"   # Render sets RENDER=true automatically
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+app.logger.setLevel(logging.INFO)
 
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
@@ -139,7 +145,7 @@ def safe_cleanup():
         cleanup_expired_files()
     except Exception:
         db.session.rollback()
-        print(traceback.format_exc())
+        app.logger.exception("cleanup failed")
 
 
 def send_verification_for(user):
@@ -340,7 +346,7 @@ def upload():
             recommendations=recommendations
         )
     except Exception as e:
-        print(traceback.format_exc())
+        app.logger.exception("upload failed user=%s", current_user.id)
         flash(f"Upload failed: {str(e)}", "danger")
         return redirect("/")
 # ---------------------------
@@ -438,7 +444,7 @@ def clean():
             quality_stroke=quality_stroke,
         )
     except Exception as e:
-        print(traceback.format_exc())
+        app.logger.exception("clean failed user=%s", current_user.id)
         flash(f"Cleaning failed: {str(e)}", "danger")
         return redirect("/")
 
@@ -460,7 +466,7 @@ def download():
         cleaned_path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
         return send_file(cleaned_path, as_attachment=True)
     except Exception as e:
-        print(traceback.format_exc())
+        app.logger.exception("download failed user=%s", current_user.id)
         flash("Download failed.", "danger")
         return redirect("/")
 @app.route("/download/excel", methods=["GET"])
@@ -512,7 +518,7 @@ def download_excel():
         return send_file(excel_path, as_attachment=True)
 
     except Exception:
-        print(traceback.format_exc())
+        app.logger.exception("excel export failed user=%s", current_user.id)
         flash("Excel generation failed.", "danger")
         return redirect("/")
 @app.route("/download/csv")
@@ -529,7 +535,8 @@ def download_csv():
 
         path = os.path.join(CLEANED_FOLDER, "cleaned_" + filename)
         return send_file(path, as_attachment=True)
-    except:
+    except Exception:
+        app.logger.exception("csv download failed user=%s", current_user.id)
         flash("CSV file not found.", "danger")
         return redirect("/")
 @app.route("/report")
@@ -555,8 +562,8 @@ def report():
         return send_file(pdf_path,
                          as_attachment=True)
 
-    except:
-        print(traceback.format_exc())
+    except Exception:
+        app.logger.exception("report download failed user=%s", current_user.id)
         flash("PDF generation failed.", "danger")
         return redirect("/")
 
