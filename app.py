@@ -1,6 +1,7 @@
 import time
 from functools import wraps
 from flask import jsonify
+import sentry_sdk
 from flask import Flask,redirect, render_template, request, send_file,flash,url_for,session
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from utils import (
@@ -48,6 +49,17 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 app.logger.setLevel(logging.INFO)
+
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+
+if _sentry_dsn:
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment="production" if IS_PRODUCTION else "local",
+        traces_sample_rate=0.0,
+        send_default_pii=False,
+        include_local_variables=False,
+    )
 
 _secret = os.environ.get("SECRET_KEY")
 if not _secret:
@@ -865,7 +877,10 @@ def billing_processing():
 def billing_status():
     return jsonify({"paid": plan_for_user(current_user)["name"] != "Free"})
 
-
+@app.route("/sentry-test")
+@login_required
+def sentry_test():
+    1 / 0
 
 @app.errorhandler(429)
 def too_many_requests(e):
