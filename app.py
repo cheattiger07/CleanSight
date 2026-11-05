@@ -12,6 +12,7 @@ from utils import (
 )
 import logging,sys
 import hmac,hashlib,json
+from flask_talisman import Talisman
 from datetime import datetime, timedelta, timezone
 from tokens import generate_token, confirm_token
 from mailer import send_verification_email, send_reset_email
@@ -41,8 +42,34 @@ from flask_wtf.csrf import CSRFError
 
 app = Flask(__name__)
 from werkzeug.middleware.proxy_fix import ProxyFix
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
 IS_PRODUCTION = os.environ.get("RENDER") == "true"   # Render sets RENDER=true automatically
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+
+csp = {
+    "default-src": "'self'",
+    "script-src": ["'self'", "'unsafe-inline'", "https://checkout.razorpay.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdn.jsdelivr.net"],
+    "font-src": ["'self'", "data:", "https://fonts.gstatic.com", "https://cdn.jsdelivr.net"],
+    "img-src": ["'self'", "data:", "https://*.razorpay.com"],
+    "frame-src": ["https://api.razorpay.com", "https://checkout.razorpay.com"],
+    "connect-src": ["'self'", "https://api.razorpay.com", "https://lumberjack.razorpay.com"],
+    "object-src": "'none'",
+    "base-uri": "'self'",
+    "frame-ancestors": "'self'",
+}
+
+Talisman(
+    app,
+    content_security_policy=csp,
+    content_security_policy_report_uri="/csp-report",   # blocks are still logged
+    force_https=False,
+    session_cookie_secure=IS_PRODUCTION,
+    strict_transport_security=IS_PRODUCTION,
+    strict_transport_security_max_age=86400,
+    permissions_policy={"geolocation": "()", "camera": "()", "microphone": "()"},
+)
+
+
 logging.basicConfig(
     level=logging.INFO,
     stream=sys.stdout,
@@ -882,6 +909,15 @@ def billing_status():
 @limiter.exempt
 def health():
     return jsonify({"status": "ok"}), 200
+
+@app.route("/csp-report", methods=["POST"])
+@csrf.exempt
+@limiter.limit("60 per minute")
+def csp_report():
+    # Browsers send CSP violation reports here. We only log a trimmed, single-line copy.
+    data = request.get_data(as_text=True)[:1000].replace("\n", " ")
+    app.logger.warning("CSP report: %s", data)
+    return "", 204
 
 @app.errorhandler(429)
 def too_many_requests(e):
