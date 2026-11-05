@@ -878,6 +878,11 @@ def billing_status():
     return jsonify({"paid": plan_for_user(current_user)["name"] != "Free"})
 
 
+@app.route("/health")
+@limiter.exempt
+def health():
+    return jsonify({"status": "ok"}), 200
+
 @app.errorhandler(429)
 def too_many_requests(e):
     flash("Too many attempts. Please wait a few minutes and try again.", "warning")
